@@ -18,7 +18,11 @@ export default function AdminUsersTable({
       render: (isAdmin, user) => (
         <Switch
           checked={isAdmin}
-          disabled={user.isSuperadmin || pendingId === user.id}
+          disabled={
+            user.isSuperadmin ||
+            (!isAdmin && !user.emailVerifiedAt) ||
+            pendingId === user.id
+          }
           onChange={(checked) => onToggleAdmin(user, checked)}
         />
       ),

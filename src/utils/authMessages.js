@@ -6,6 +6,7 @@ const ERROR_KEYS = {
   invalid_input: "invalid_input",
   cannot_change_superadmin: "cannot_change_superadmin",
   last_admin: "last_admin",
+  user_not_verified: "user_not_verified",
 };
 
 export function messageForError(code, t) {

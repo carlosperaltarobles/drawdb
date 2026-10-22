@@ -15,6 +15,10 @@ describe("messageForError", () => {
       "No se puede cambiar el rol del superadministrador",
     ],
     ["last_admin", "Debe quedar al menos un administrador"],
+    [
+      "user_not_verified",
+      "El usuario debe verificar su correo antes de ser administrador",
+    ],
   ])("maps %s to its Spanish text", (code, text) => {
     expect(messageForError(code, t)).toBe(text);
   });

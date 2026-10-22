@@ -474,6 +474,8 @@ const es = {
     cannot_change_superadmin:
       "No se puede cambiar el rol del superadministrador",
     last_admin: "Debe quedar al menos un administrador",
+    user_not_verified:
+      "El usuario debe verificar su correo antes de ser administrador",
     something_went_wrong: "Algo salió mal, inténtalo de nuevo",
     attachment_failed: "No se pudo adjuntar el archivo",
     attachments_too_large: "Los adjuntos superan 5 MB",

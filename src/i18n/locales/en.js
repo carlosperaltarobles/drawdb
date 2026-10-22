@@ -469,6 +469,8 @@ const en = {
     administrator: "Administrator",
     cannot_change_superadmin: "The superadmin's role cannot be changed",
     last_admin: "At least one administrator must remain",
+    user_not_verified:
+      "User must verify their email before becoming an administrator",
     something_went_wrong: "Something went wrong, try again",
     attachment_failed: "Could not attach the file",
     attachments_too_large: "Attachments exceed 5 MB",
