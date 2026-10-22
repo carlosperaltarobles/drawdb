@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Input, Modal, Select, Toast } from "@douyinfe/semi-ui";
 import { useTranslation } from "react-i18next";
 import ErrorBanner from "../Auth/ErrorBanner";
@@ -11,6 +11,7 @@ import {
   updateMember,
 } from "../../api/projects";
 import { messageForError } from "../../utils/authMessages";
+import { createMembersLoader } from "./membersLoader";
 import { MEMBER_ROLES, roleLabelKey } from "../../utils/projects";
 
 function RoleSelect({ value, onChange, disabled }) {
@@ -36,15 +37,26 @@ function InviteForm({ projectId, onDone }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const active = useRef(false);
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
+
   const submit = async () => {
+    if (loading) return;
     setLoading(true);
     setError("");
     try {
       const { status } = await addMember(projectId, email.trim(), role);
+      if (!active.current) return;
       Toast.success(t(status === "added" ? "member_added" : "invitation_sent"));
       setEmail("");
       onDone();
     } catch (err) {
+      if (!active.current) return;
       const code = errorCode(err);
       setError(
         code === "registration_not_allowed"
@@ -52,7 +64,7 @@ function InviteForm({ projectId, onDone }) {
           : messageForError(code, t),
       );
     } finally {
-      setLoading(false);
+      if (active.current) setLoading(false);
     }
   };
 
@@ -86,23 +98,24 @@ export default function MembersModal({ projectId, visible, onClose }) {
   const [data, setData] = useState({ members: [], invitations: [] });
   const [error, setError] = useState("");
 
-  // Runs an optional mutation, then reloads the lists.
-  const run = useCallback(
-    async (mutation) => {
-      setError("");
-      try {
-        await mutation?.();
-        setData(await fetchMembers(projectId));
-      } catch (err) {
-        setError(messageForError(errorCode(err), t));
-      }
-    },
-    [projectId, t],
-  );
-
+  const loader = useRef(null);
+  const run = useCallback((mutation) => loader.current?.run(mutation), []);
   useEffect(() => {
-    if (visible) run();
-  }, [visible, run]);
+    setData({ members: [], invitations: [] });
+    setError("");
+    if (!visible) return;
+    const current = createMembersLoader({
+      load: () => fetchMembers(projectId),
+      onData: setData,
+      onError: (err) => setError(err ? messageForError(errorCode(err), t) : ""),
+    });
+    loader.current = current;
+    current.run();
+    return () => {
+      current.dispose();
+      if (loader.current === current) loader.current = null;
+    };
+  }, [visible, projectId, t]);
 
   return (
     <Modal
@@ -164,7 +177,13 @@ export default function MembersModal({ projectId, visible, onClose }) {
             </ul>
           </section>
         )}
-        <InviteForm projectId={projectId} onDone={() => run()} />
+        {visible && (
+          <InviteForm
+            key={projectId}
+            projectId={projectId}
+            onDone={() => run()}
+          />
+        )}
       </div>
     </Modal>
   );

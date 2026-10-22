@@ -103,6 +103,9 @@ export default function WorkSpace({ forcedDiagramId } = {}) {
   const extensions = useMemo(() => extensionValues ?? {}, [extensionValues]);
   const cloudOnly = typeof extensions.cloudSave === "function";
   const cloudLoad = extensions.cloudLoad;
+  const projectMode = extensions.projectMode;
+  const prepareCloudDiagram = extensions.prepareCloudDiagram;
+  const loadGeneration = useRef(null);
 
   const handleResize = (e) => {
     if (!resize) return;
@@ -145,6 +148,7 @@ export default function WorkSpace({ forcedDiagramId } = {}) {
   );
 
   const save = useCallback(async () => {
+    if (projectMode) return;
     if (searchParams.has("shareId")) {
       searchParams.delete("shareId");
       setSearchParams(searchParams, { replace: true });
@@ -230,6 +234,7 @@ export default function WorkSpace({ forcedDiagramId } = {}) {
     }
   }, [
     cloudOnly,
+    projectMode,
     diagramSource,
     buildCloudPayload,
     extensions,
@@ -284,10 +289,13 @@ export default function WorkSpace({ forcedDiagramId } = {}) {
   };
 
   const load = useCallback(async () => {
+    const generation = {};
+    loadGeneration.current = generation;
     const previousLoadedId = loadedIdRef.current;
     loadedIdRef.current = loadedDiagramId ?? null;
 
     const fetchDiagram = async (id) => {
+      if (projectMode) return { diagram: await cloudLoad(id), source: "cloud" };
       const localDiagram = await db.diagrams
         .where("diagramId")
         .equals(id)
@@ -354,8 +362,9 @@ export default function WorkSpace({ forcedDiagramId } = {}) {
     };
 
     const loadDiagram = async (id) => {
-      const { diagram, source } = await fetchDiagram(id);
-      if (!diagram) return;
+      let { diagram, source } = await fetchDiagram(id);
+      if (!diagram || generation !== loadGeneration.current) return;
+      if (prepareCloudDiagram) diagram = prepareCloudDiagram();
 
       setDiagramSource(source);
       if (source === "local") {
@@ -425,7 +434,7 @@ export default function WorkSpace({ forcedDiagramId } = {}) {
     };
 
     const shareId = searchParams.get("shareId");
-    if (shareId) {
+    if (shareId && !projectMode) {
       const existingDiagram = await db.diagrams.get({
         loadedFromGistId: shareId,
       });
@@ -454,6 +463,8 @@ export default function WorkSpace({ forcedDiagramId } = {}) {
     }
   }, [
     cloudLoad,
+    projectMode,
+    prepareCloudDiagram,
     setTransform,
     setRedoStack,
     setUndoStack,
@@ -493,13 +504,14 @@ export default function WorkSpace({ forcedDiagramId } = {}) {
     )
       return;
 
-    if (settings.autosave) {
+    if (settings.autosave && !projectMode) {
       setSaveState(State.SAVING);
     }
   }, [
     undoStack,
     redoStack,
     settings.autosave,
+    projectMode,
     tables?.length,
     areas?.length,
     notes?.length,
@@ -525,6 +537,9 @@ export default function WorkSpace({ forcedDiagramId } = {}) {
     document.title = "Editor | drawDB";
 
     load();
+    return () => {
+      loadGeneration.current = null;
+    };
   }, [load]);
 
   return (
@@ -556,6 +571,7 @@ export default function WorkSpace({ forcedDiagramId } = {}) {
         <div className="relative flex-1 min-w-0 h-full overflow-hidden">
           <CanvasContextProvider className="h-full w-full">
             <Canvas saveState={saveState} setSaveState={setSaveState} />
+            <Slot name="canvas-layer" />
           </CanvasContextProvider>
           <Slot name="canvas-overlay" />
           {layout.toolbar && (

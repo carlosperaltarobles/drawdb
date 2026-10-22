@@ -1,5 +1,6 @@
 import { createContext, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useExtensions } from "./ExtensionsContext";
 import { queryConfig } from "../utils/queryConfig";
 
 export const LayoutContext = createContext(null);
@@ -15,6 +16,7 @@ const defaultLayout = {
 
 export default function LayoutContextProvider({ children }) {
   const [searchParams] = useSearchParams();
+  const extensions = useExtensions();
 
   const hideHeaderParam = searchParams.get(queryConfig.hideHeader.key);
   const hideSidebarParam = searchParams.get(queryConfig.hideSidebar.key);
@@ -35,6 +37,7 @@ export default function LayoutContextProvider({ children }) {
 
   const effectiveLayout = {
     ...layout,
+    readOnly: extensions.projectMode ? extensions.readOnly : layout.readOnly,
     header: queryConfig.hideHeader.isForced(hideHeaderParam)
       ? false
       : layout.header,

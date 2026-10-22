@@ -16,7 +16,7 @@ import Forgot from "./pages/Forgot";
 import Reset from "./pages/Reset";
 import Account from "./pages/Account";
 import Projects from "./pages/Projects";
-import ProjectPage from "./pages/ProjectPage";
+import ProjectEditor from "./pages/ProjectEditor";
 import AdminUsers from "./pages/AdminUsers";
 import AuthContextProvider from "./context/AuthContext";
 import {
@@ -41,7 +41,7 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route path="/" element={<Navigate to="/projects" replace />} />
         <Route path="/projects" element={<Projects />} />
-        <Route path="/projects/:id" element={<ProjectPage />} />
+        <Route path="/projects/:id" element={<ProjectEditor />} />
         <Route path="/account" element={<Account />} />
         <Route path="/editor" element={<Editor />} />
         <Route path="/editor/diagrams/:id" element={<Editor />} />

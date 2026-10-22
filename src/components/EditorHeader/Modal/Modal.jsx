@@ -9,12 +9,13 @@ import {
 import { saveAs } from "file-saver";
 import { Parser } from "node-sql-parser";
 import { Parser as OracleParser } from "oracle-sql-parser";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DB, MODAL, STATUS } from "../../../data/constants";
 import { databases } from "../../../data/databases";
 import {
   useAreas,
+  useLayout,
   useDiagram,
   useEnums,
   useNavigateWithParams,
@@ -93,19 +94,46 @@ export default function Modal({
   const [saveAsTitle, setSaveAsTitle] = useState(title);
   const [aiImporting, setAiImporting] = useState(false);
   const navigate = useNavigateWithParams();
-  const { importSqlWithAi } = useExtensions();
+  const extensions = useExtensions();
+  const { importSqlWithAi, projectMode } = extensions;
+  const { layout } = useLayout();
+  const permission = useRef();
+  permission.current = {
+    readOnly: layout.readOnly,
+    canWrite: extensions.canWrite,
+  };
+  const canEdit = () =>
+    !permission.current.readOnly &&
+    (!projectMode || permission.current.canWrite());
+  const confirmOverwrite = (apply) => {
+    if (!canEdit()) return;
+    if (!projectMode) {
+      apply();
+      return;
+    }
+    SemiUIModal.confirm({
+      title: t("import"),
+      content: t("project_overwrite_confirm"),
+      okText: t("continue"),
+      cancelText: t("cancel"),
+      onOk: () => {
+        if (canEdit()) apply();
+      },
+    });
+  };
 
   useEffect(() => {
     if (modal === MODAL.SAVEAS) setSaveAsTitle(title);
   }, [modal, title]);
 
   const overwriteDiagram = () => {
+    if (!canEdit()) return;
     setTables(importData.tables);
     setRelationships(importData.relationships);
     setAreas(importData.subjectAreas ?? []);
     setNotes(importData.notes ?? []);
     setViews(importData.views ?? []);
-    if (importData.title) {
+    if (importData.title && !projectMode) {
       setTitle(importData.title);
     }
     if (databases[database].hasEnums && importData.enums) {
@@ -167,34 +195,41 @@ export default function Modal({
   };
 
   const applyImportedDiagram = (diagramData) => {
-    if (importSource.overwrite) {
-      setTables(diagramData.tables);
-      setRelationships(diagramData.relationships);
-      if (databases[database].hasTypes) setTypes(diagramData.types ?? []);
-      if (databases[database].hasEnums) setEnums(diagramData.enums ?? []);
-      setTransform((prev) => ({ ...prev, pan: { x: 0, y: 0 } }));
-      setNotes([]);
-      setAreas([]);
-      setViews([]);
-    } else {
-      setTables((prev) => [...prev, ...diagramData.tables]);
-      setRelationships((prev) => [
-        ...prev,
-        ...diagramData.relationships.map((r) => ({ ...r, id: newId() })),
-      ]);
-      if (databases[database].hasTypes && diagramData.types.length)
-        setTypes((prev) => [...prev, ...diagramData.types]);
-      if (databases[database].hasEnums && diagramData.enums.length)
-        setEnums((prev) => [...prev, ...diagramData.enums]);
-    }
+    if (!canEdit()) return;
+    const apply = () => {
+      if (!canEdit()) return;
+      if (importSource.overwrite) {
+        setTables(diagramData.tables);
+        setRelationships(diagramData.relationships);
+        if (databases[database].hasTypes) setTypes(diagramData.types ?? []);
+        if (databases[database].hasEnums) setEnums(diagramData.enums ?? []);
+        setTransform((prev) => ({ ...prev, pan: { x: 0, y: 0 } }));
+        setNotes([]);
+        setAreas([]);
+        setViews([]);
+      } else {
+        setTables((prev) => [...prev, ...diagramData.tables]);
+        setRelationships((prev) => [
+          ...prev,
+          ...diagramData.relationships.map((r) => ({ ...r, id: newId() })),
+        ]);
+        if (databases[database].hasTypes && diagramData.types.length)
+          setTypes((prev) => [...prev, ...diagramData.types]);
+        if (databases[database].hasEnums && diagramData.enums.length)
+          setEnums((prev) => [...prev, ...diagramData.enums]);
+      }
 
-    setUndoStack([]);
-    setRedoStack([]);
+      setUndoStack([]);
+      setRedoStack([]);
 
-    setModal(MODAL.NONE);
+      setModal(MODAL.NONE);
+    };
+    if (importSource.overwrite) confirmOverwrite(apply);
+    else apply();
   };
 
   const importSourceWithAi = async () => {
+    if (!canEdit()) return;
     setAiImporting(true);
     try {
       const result = await importSqlWithAi({
@@ -230,6 +265,14 @@ export default function Modal({
   };
 
   const getModalOnOk = async () => {
+    if ([MODAL.IMPORT, MODAL.IMPORT_SRC].includes(modal) && !canEdit()) return;
+    if (
+      projectMode &&
+      [MODAL.NEW, MODAL.OPEN, MODAL.RENAME, MODAL.SAVEAS, MODAL.SHARE].includes(
+        modal,
+      )
+    )
+      return;
     switch (modal) {
       case MODAL.IMG:
         saveAs(
@@ -245,13 +288,15 @@ export default function Modal({
         return;
       }
       case MODAL.IMPORT:
-        if (error.type !== STATUS.ERROR) {
-          setTransform((prev) => ({ ...prev, pan: { x: 0, y: 0 } }));
-          overwriteDiagram();
-          setImportData(null);
-          setModal(MODAL.NONE);
-          setUndoStack([]);
-          setRedoStack([]);
+        if (error.type !== STATUS.ERROR && importData) {
+          confirmOverwrite(() => {
+            setTransform((prev) => ({ ...prev, pan: { x: 0, y: 0 } }));
+            overwriteDiagram();
+            setImportData(null);
+            setModal(MODAL.NONE);
+            setUndoStack([]);
+            setRedoStack([]);
+          });
         }
         return;
       case MODAL.IMPORT_SRC:
@@ -390,6 +435,7 @@ export default function Modal({
   };
 
   const okDisabled =
+    ([MODAL.IMPORT, MODAL.IMPORT_SRC].includes(modal) && layout.readOnly) ||
     (error && error?.type === STATUS.ERROR) ||
     (modal === MODAL.IMPORT && (error.type === STATUS.ERROR || !importData)) ||
     (modal === MODAL.RENAME && title === "") ||

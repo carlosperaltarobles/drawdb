@@ -6,6 +6,12 @@ const english = {
 
 const en = {
   translation: {
+    project_offline: "Offline — reconnecting…",
+    project_connecting: "Connecting to project…",
+    project_access_revoked: "You no longer have access to this project",
+    project_deleted: "This project has been deleted",
+    project_overwrite_confirm:
+      "This replaces the diagram for the whole team. Continue?",
     report_bug: "Report a bug",
     import: "Import",
     inherits: "Inherits",

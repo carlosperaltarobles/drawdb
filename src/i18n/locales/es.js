@@ -6,6 +6,12 @@ const spanish = {
 
 const es = {
   translation: {
+    project_offline: "Sin conexión — reconectando…",
+    project_connecting: "Conectando al proyecto…",
+    project_access_revoked: "Ya no tienes acceso a este proyecto",
+    project_deleted: "Este proyecto ha sido eliminado",
+    project_overwrite_confirm:
+      "Esto reemplaza el diagrama para todo el equipo. ¿Continuar?",
     report_bug: "Reportar error",
     import: "Importar",
     inherits: "Hereda",

@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { Slot, useExtensions } from "../../context/ExtensionsContext";
 import { createPortal } from "react-dom";
@@ -99,6 +99,11 @@ import { applyDiagramPlan } from "../../utils/dbml/applyPlan";
 import { diffDiagram } from "../../utils/dbml/diff";
 import { exportSavedData } from "../../utils/exportSavedData";
 import { nanoid } from "nanoid";
+import {
+  historyTargetExists,
+  restoreAddedField,
+  applyHistorySnapshot,
+} from "../../utils/history";
 import { findById, insertAt, newId, removeById } from "../../utils/ids";
 import { getTableHeight, getTableWidth } from "../../utils/utils";
 import {
@@ -179,10 +184,28 @@ export default function ControlPanel({
   const isTemplate = useMatch("/editor/templates/:id");
   const navigate = useNavigateWithParams();
   const extensions = useExtensions();
+  const canEditRef = useRef(false);
+  canEditRef.current = !layout.readOnly;
+  const canEdit = () =>
+    canEditRef.current && (!extensions.projectMode || extensions.canWrite());
+  if (extensions.projectMode) title = extensions.projectName;
+  const historyDoc = {
+    tables,
+    relationships,
+    notes,
+    areas,
+    views,
+    types,
+    enums,
+  };
 
   const swapDbmlSnapshot = (entry) => {
     const current = { tables, relationships, enums };
-    applyDiagramPlan(diffDiagram(current, entry.data.snapshot), {
+    const target =
+      extensions.projectMode && entry.data.applied
+        ? applyHistorySnapshot(current, entry.data.applied, entry.data.snapshot)
+        : entry.data.snapshot;
+    applyDiagramPlan(diffDiagram(current, target), {
       addTable,
       updateTable,
       updateField,
@@ -192,13 +215,14 @@ export default function ControlPanel({
       deleteRelationship,
       setEnums,
     });
-    return { ...entry, data: { snapshot: current } };
+    return { ...entry, data: { snapshot: current, applied: target } };
   };
 
   const undo = () => {
-    if (undoStack.length === 0) return;
+    if (!canEdit() || undoStack.length === 0) return;
     const a = undoStack[undoStack.length - 1];
     setUndoStack((prev) => prev.filter((_, i) => i !== prev.length - 1));
+    if (!historyTargetExists(a, historyDoc)) return;
 
     if (a.bulk) {
       if (a.element === ObjectType.RELATIONSHIP && a.action === Action.ADD) {
@@ -416,9 +440,10 @@ export default function ControlPanel({
   };
 
   const redo = () => {
-    if (redoStack.length === 0) return;
+    if (!canEdit() || redoStack.length === 0) return;
     const a = redoStack[redoStack.length - 1];
     setRedoStack((prev) => prev.filter((e, i) => i !== prev.length - 1));
+    if (!historyTargetExists(a, historyDoc)) return;
 
     if (a.bulk) {
       if (a.element === ObjectType.RELATIONSHIP && a.action === Action.ADD) {
@@ -519,21 +544,7 @@ export default function ControlPanel({
           deleteField(a.data.field, a.tid, false);
         } else if (a.component === "field_add") {
           updateTable(a.tid, {
-            fields: [
-              ...table.fields,
-              {
-                name: "",
-                type: "",
-                default: "",
-                check: "",
-                primary: false,
-                unique: false,
-                notNull: false,
-                increment: false,
-                comment: "",
-                id: nanoid(),
-              },
-            ],
+            fields: restoreAddedField(table.fields, a),
           });
         } else if (a.component === "index_add") {
           updateTable(a.tid, {
@@ -627,7 +638,9 @@ export default function ControlPanel({
     }
   };
 
-  const fileImport = () => setModal(MODAL.IMPORT);
+  const fileImport = () => {
+    if (canEdit()) setModal(MODAL.IMPORT);
+  };
   const viewGrid = () =>
     setSettings((prev) => ({ ...prev, showGrid: !prev.showGrid }));
   const snapToGrid = () =>
@@ -746,6 +759,7 @@ export default function ControlPanel({
     }));
   };
   const autoArrangeTables = () => {
+    if (!canEdit()) return;
     const positions = autoArrange(tables, relationships, settings);
     const positionById = new Map(positions.map((p) => [p.id, p]));
 
@@ -784,6 +798,7 @@ export default function ControlPanel({
     setShowAutoConnectModal(true);
   };
   const confirmAutoConnectFKs = () => {
+    if (!canEdit()) return;
     setShowAutoConnectModal(false);
     const newRels = findAutoFKRelationships(tables, relationships);
     if (newRels.length === 0) {
@@ -805,6 +820,7 @@ export default function ControlPanel({
     Toast.success(t("auto_connect_fk_success", { count: newRels.length }));
   };
   const edit = () => {
+    if (!canEdit()) return;
     if (selectedElement.element === ObjectType.TABLE) {
       if (!layout.sidebar) {
         setSelectedElement((prev) => ({
@@ -874,6 +890,7 @@ export default function ControlPanel({
     }
   };
   const del = () => {
+    if (!canEdit()) return;
     if (layout.readOnly) {
       return;
     }
@@ -895,6 +912,7 @@ export default function ControlPanel({
     }
   };
   const duplicate = () => {
+    if (!canEdit()) return;
     if (layout.readOnly) {
       return;
     }
@@ -985,10 +1003,12 @@ export default function ControlPanel({
     }
   };
   const paste = () => {
+    if (!canEdit()) return;
     if (layout.readOnly) {
       return;
     }
     navigator.clipboard.readText().then((text) => {
+      if (!canEdit()) return;
       let obj = null;
       try {
         obj = JSON.parse(text);
@@ -1049,6 +1069,7 @@ export default function ControlPanel({
     setLayout((prev) => ({ ...prev, dbmlEditor: !prev.dbmlEditor }));
   };
   const save = async () => {
+    if (extensions.projectMode || !canEdit()) return;
     if (typeof extensions.cloudSave === "function") {
       // TODO: dont have blank here have null
       const isNew = diagramId === "blank";
@@ -1108,10 +1129,15 @@ export default function ControlPanel({
     return recent;
   }, [cloud, local]);
 
-  const open = () => setModal(MODAL.OPEN);
-  const saveDiagramAs = () => setModal(MODAL.SAVEAS);
+  const open = () => {
+    if (!extensions.projectMode) setModal(MODAL.OPEN);
+  };
+  const saveDiagramAs = () => {
+    if (!extensions.projectMode && canEdit()) setModal(MODAL.SAVEAS);
+  };
 
   const saveAsCopy = async (newTitle) => {
+    if (extensions.projectMode || !canEdit()) return;
     const copyDiagramId = uuidv4();
     const diagramData = {
       diagramId: copyDiagramId,
@@ -1689,6 +1715,7 @@ export default function ControlPanel({
           message: t("are_you_sure_clear"),
         },
         function: async () => {
+          if (!canEdit()) return;
           setTables([]);
           setRelationships([]);
           setAreas([]);
@@ -1985,6 +2012,30 @@ export default function ControlPanel({
     },
   };
 
+  if (extensions.projectMode) {
+    for (const item of [
+      "new",
+      "new_window",
+      "open",
+      "open_recent",
+      "save",
+      "save_as",
+      "save_as_template",
+      "rename",
+      "delete_diagram",
+    ])
+      delete menu.file[item];
+    for (const item of [
+      "autosave",
+      "show_timeline",
+      "export_saved_data",
+      "clear_cache",
+      "flush_storage",
+    ])
+      delete menu.settings[item];
+    menu.file.exit.function = () => navigate("/projects");
+  }
+
   useHotkeys("mod+i", fileImport, EDITOR_HOTKEY);
   useHotkeys("mod+z", undo, EDITOR_HOTKEY);
   useHotkeys("mod+y", redo, EDITOR_HOTKEY);
@@ -2023,7 +2074,7 @@ export default function ControlPanel({
             {header()}
             <div className="flex items-center gap-2 me-7">
               <Slot name="header-actions-start" />
-              {!isTemplate && (
+              {!isTemplate && !extensions.projectMode && (
                 <Button
                   type="primary"
                   className="!text-base !pe-6 !ps-5 !py-[18px] !rounded-md"
@@ -2245,14 +2296,16 @@ export default function ControlPanel({
             </button>
           </Tooltip>
           <Divider layout="vertical" margin="8px" />
-          <Tooltip content={t("versions")} position="bottom">
-            <button
-              className="py-1 px-2 hover-2 rounded-sm text-xl -mt-0.5"
-              onClick={() => setSidesheet(SIDESHEET.VERSIONS)}
-            >
-              <i className="fa-solid fa-code-branch" />
-            </button>
-          </Tooltip>
+          {!extensions.projectMode && (
+            <Tooltip content={t("versions")} position="bottom">
+              <button
+                className="py-1 px-2 hover-2 rounded-sm text-xl -mt-0.5"
+                onClick={() => setSidesheet(SIDESHEET.VERSIONS)}
+              >
+                <i className="fa-solid fa-code-branch" />
+              </button>
+            </Tooltip>
+          )}
           <Divider layout="vertical" margin="8px" />
           <Tooltip content={t("theme")} position="bottom">
             <button
@@ -2338,9 +2391,19 @@ export default function ControlPanel({
                   // https://stackoverflow.com/a/70976017/1137077
                   e.target.releasePointerCapture(e.pointerId);
                 }}
-                onClick={!layout.readOnly && (() => setModal(MODAL.RENAME))}
+                onClick={
+                  !extensions.projectMode && !layout.readOnly
+                    ? () => setModal(MODAL.RENAME)
+                    : undefined
+                }
               >
-                <span>{isTemplate ? t("templates") : t("diagrams")}</span>
+                <span>
+                  {extensions.projectMode
+                    ? t("projects")
+                    : isTemplate
+                      ? t("templates")
+                      : t("diagrams")}
+                </span>
                 <span className="select-none text-zinc-400 dark:text-zinc-500 mx-1">
                   /
                 </span>
@@ -2351,9 +2414,9 @@ export default function ControlPanel({
                   </Tag>
                 )}
               </div>
-              {(showEditName || modal === MODAL.RENAME) && !layout.readOnly && (
-                <IconEdit />
-              )}
+              {(showEditName || modal === MODAL.RENAME) &&
+                !layout.readOnly &&
+                !extensions.projectMode && <IconEdit />}
             </div>
             <div className="flex items-center">
               <div className="flex justify-start text-md select-none me-2">

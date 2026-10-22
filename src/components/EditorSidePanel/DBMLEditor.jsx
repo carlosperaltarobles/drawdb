@@ -1,3 +1,4 @@
+import { applyHistorySnapshot } from "../../utils/history";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Action, ObjectType } from "../../data/constants";
@@ -146,6 +147,7 @@ export default function DBMLEditor({ onProblemsChange }) {
           action: Action.EDIT,
           element: ObjectType.DBML,
           data: {
+            applied: applyHistorySnapshot(live, base, next),
             snapshot: {
               tables: live.tables,
               relationships: live.relationships,

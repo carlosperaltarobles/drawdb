@@ -17,7 +17,11 @@ export function useDiagramList() {
   const cloudEnabled = typeof cloudList === "function";
   const currentUserId = extensions?.cloudCurrentUserId ?? null;
 
-  const local = useLiveQuery(() => db.diagrams.toArray(), []);
+  const projectMode = extensions.projectMode;
+  const local = useLiveQuery(
+    () => (projectMode ? [] : db.diagrams.toArray()),
+    [projectMode],
+  );
   const [cloud, setCloud] = useState(() =>
     cloudEnabled ? { loading: true, error: null, items: null } : DISABLED,
   );
