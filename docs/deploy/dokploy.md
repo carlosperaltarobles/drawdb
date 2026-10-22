@@ -53,7 +53,7 @@ En el dominio `https://<dominio>`, crea las rutas al servicio `drawdb-api`, puer
 | `/api`       | `drawdb-api` | `5000` | Conserva el prefijo `/api`               |
 | `/socket.io` | `drawdb-api` | `5000` | Conserva el prefijo y habilita WebSocket |
 
-Configura las dos rutas antes de la ruta general `/`. No elimines ni reescribas los prefijos al enviar las solicitudes al backend. Habilita HTTPS para el dominio.
+Verifica que `/api` y `/socket.io` tengan prioridad efectiva mayor que la ruta general `/`; el orden en que creas las rutas no garantiza esa prioridad. No elimines ni reescribas los prefijos al enviar las solicitudes al backend. Habilita HTTPS para el dominio.
 
 ## 4. Crear la app `drawdb-web`
 
@@ -79,12 +79,17 @@ docker compose up -d
 ./create-db.sh drawdb_test drawdb drawdb_local
 ```
 
-Configura el `.env` del backend con `DATABASE_URL=postgresql://drawdb:drawdb_local@localhost:5432/drawdb`, `APP_URL=http://localhost:5173`, los dominios permitidos y un superadmin de desarrollo. Para el correo, inicia Mailpit:
+Reutiliza el contenedor Mailpit existente `policlinico_mailpit`. Si está detenido, inícialo con `docker start policlinico_mailpit`. Desde el host, SMTP está disponible en `localhost:1026` y la interfaz web en `http://localhost:8026`.
+
+En `drawdb-server`, copia `.env.sample` a `.env` y ajusta los valores locales: `DATABASE_URL=postgresql://drawdb:drawdb_local@localhost:5432/drawdb`, `APP_URL=http://localhost:5173`, los dominios permitidos, un superadmin de desarrollo y `MAIL_HOST=localhost`, `MAIL_PORT=1026`, `MAIL_SECURE=false`. Con `APP_URL` en HTTP, la cookie de sesión no usa el atributo `Secure`. Si el checkout está limpio y no tiene `node_modules`, instala las dependencias con `npm ci`; aplica luego las migraciones Prisma antes de arrancar el backend:
 
 ```bash
-docker run --rm -d --name drawdb-mailpit -p 1025:1025 -p 8025:8025 axllent/mailpit
+cd ../drawdb-server
+cp .env.sample .env
+# Solo en un checkout limpio o sin node_modules:
+npm ci
+npm run migrate
+npm run dev
 ```
 
-Configura `MAIL_HOST=localhost`, `MAIL_PORT=1025` y `MAIL_SECURE=false`; revisa los mensajes en `http://localhost:8025`. Al terminar, detén Mailpit con `docker stop drawdb-mailpit`.
-
-En dos terminales, ejecuta `npm run dev` en `drawdb-server` y en este repositorio. Vite sirve el frontend en `http://localhost:5173` y proxya `/api` y `/socket.io` al backend local en el puerto `5000`; ambas rutas conservan el mismo origen para el navegador.
+En otra terminal, desde este repositorio, instala dependencias con `npm ci` si hace falta y ejecuta `npm run dev`. Vite sirve el frontend en `http://localhost:5173` y proxya `/api` y `/socket.io` al backend local en el puerto `5000`; ambas rutas conservan el mismo origen para el navegador.
