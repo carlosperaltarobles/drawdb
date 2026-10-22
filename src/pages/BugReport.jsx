@@ -1,3 +1,4 @@
+import { dataUriToAttachment } from "../utils/attachments";
 import { useEffect, useState, useCallback, useRef } from "react";
 import logo_light from "../assets/logo_light_160.png";
 import logo_dark from "../assets/logo_dark_160.png";
@@ -43,7 +44,7 @@ function Form({ theme }) {
 
       reader.onload = (event) => {
         const dataUri = event.target.result;
-        attachments.push({ path: dataUri, filename: fileList[index].name });
+        attachments.push(dataUriToAttachment(dataUri, fileList[index].name));
       };
 
       reader.readAsDataURL(fileList[index].fileInstance);
@@ -243,7 +244,8 @@ export default function BugReport() {
         } my-1`}
       />
       <div className="text-center text-sm py-3">
-        &copy; {new Date().getFullYear()} <strong>drawDB</strong> - All rights reserved.
+        &copy; {new Date().getFullYear()} <strong>drawDB</strong> - All rights
+        reserved.
       </div>
     </>
   );
