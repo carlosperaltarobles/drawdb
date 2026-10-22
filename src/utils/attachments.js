@@ -30,3 +30,13 @@ export function dataUriToAttachment(dataUri, filename) {
     contentType: contentType || "text/plain",
   };
 }
+
+export const MAX_ATTACHMENTS_BYTES = 5 * 1024 * 1024;
+
+/** Tamaño aproximado en bytes de los adjuntos ya codificados en base64. */
+export function attachmentsSize(attachments) {
+  return attachments.reduce(
+    (total, { content }) => total + Math.floor((content.length * 3) / 4),
+    0,
+  );
+}

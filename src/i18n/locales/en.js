@@ -464,6 +464,8 @@ const en = {
     cannot_change_superadmin: "The superadmin's role cannot be changed",
     last_admin: "At least one administrator must remain",
     something_went_wrong: "Something went wrong, try again",
+    attachment_failed: "Could not attach the file",
+    attachments_too_large: "Attachments exceed 5 MB",
   },
 };
 

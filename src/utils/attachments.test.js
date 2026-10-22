@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { dataUriToAttachment } from "./attachments";
+import {
+  attachmentsSize,
+  dataUriToAttachment,
+  MAX_ATTACHMENTS_BYTES,
+} from "./attachments";
 
 describe("dataUriToAttachment", () => {
   it("separa un data URI base64", () => {
@@ -27,8 +31,32 @@ describe("dataUriToAttachment", () => {
     ).toBe("hola mundo ñ");
   });
 
+  it("acepta parámetros antes de base64", () => {
+    const result = dataUriToAttachment(
+      "data:text/plain;charset=utf-8;base64,aG9sYQ==",
+      "a.txt",
+    );
+    expect(result.content).toBe("aG9sYQ==");
+    expect(result.contentType).toBe("text/plain");
+  });
+
+  it("usa text/plain cuando falta el contentType", () => {
+    expect(dataUriToAttachment("data:;base64,aG9sYQ==", "a").contentType).toBe(
+      "text/plain",
+    );
+  });
+
   it("lanza con una entrada inválida", () => {
     expect(() => dataUriToAttachment("no-es-data-uri", "a.txt")).toThrow();
     expect(() => dataUriToAttachment(null, "a.txt")).toThrow();
+  });
+});
+
+describe("attachmentsSize", () => {
+  it("suma los bytes decodificados", () => {
+    expect(
+      attachmentsSize([{ content: "aG9sYQ==" }, { content: "aG9sYQ==" }]),
+    ).toBeGreaterThan(0);
+    expect(MAX_ATTACHMENTS_BYTES).toBe(5242880);
   });
 });

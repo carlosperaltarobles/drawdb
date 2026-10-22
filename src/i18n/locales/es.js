@@ -469,6 +469,8 @@ const es = {
       "No se puede cambiar el rol del superadministrador",
     last_admin: "Debe quedar al menos un administrador",
     something_went_wrong: "Algo salió mal, inténtalo de nuevo",
+    attachment_failed: "No se pudo adjuntar el archivo",
+    attachments_too_large: "Los adjuntos superan 5 MB",
   },
 };
 

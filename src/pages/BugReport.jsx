@@ -1,4 +1,3 @@
-import { dataUriToAttachment } from "../utils/attachments";
 import { useEffect, useState, useCallback, useRef } from "react";
 import logo_light from "../assets/logo_light_160.png";
 import logo_dark from "../assets/logo_dark_160.png";
@@ -14,8 +13,15 @@ import { Link } from "react-router-dom";
 import { socials } from "../data/socials";
 import { send } from "../api/email";
 import { useThemedPage } from "../hooks";
+import {
+  attachmentsSize,
+  dataUriToAttachment,
+  MAX_ATTACHMENTS_BYTES,
+} from "../utils/attachments";
+import { useTranslation } from "react-i18next";
 
 function Form({ theme }) {
+  const { t } = useTranslation();
   const [editor] = useLexicalComposerContext();
   const [data, setData] = useState({
     title: "",
@@ -44,7 +50,19 @@ function Form({ theme }) {
 
       reader.onload = (event) => {
         const dataUri = event.target.result;
-        attachments.push(dataUriToAttachment(dataUri, fileList[index].name));
+        try {
+          const attachment = dataUriToAttachment(dataUri, fileList[index].name);
+          if (
+            attachmentsSize([...attachments, attachment]) >
+            MAX_ATTACHMENTS_BYTES
+          ) {
+            Toast.error(t("attachments_too_large"));
+            return;
+          }
+          attachments.push(attachment);
+        } catch {
+          Toast.error(t("attachment_failed"));
+        }
       };
 
       reader.readAsDataURL(fileList[index].fileInstance);
