@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useSelect } from "../../../hooks";
-import { TreeSelect } from "@douyinfe/semi-ui";
+import { Input, TreeSelect } from "@douyinfe/semi-ui";
 import { IconSearch } from "@douyinfe/semi-icons";
 import { ObjectType } from "../../../data/constants";
 import { useTranslation } from "react-i18next";
@@ -8,6 +8,18 @@ import { useTranslation } from "react-i18next";
 export default function SearchBar({ tables }) {
   const { setSelectedElement } = useSelect();
   const { t } = useTranslation();
+  const treeSelectRef = useRef(null);
+  const renderSearchInput = useCallback(
+    ({ autofocus, ...inputProps }) => (
+      <Input
+        {...inputProps}
+        ref={treeSelectRef.current?.inputRef}
+        aria-label="Filter TreeSelect item"
+        autoFocus={autofocus}
+      />
+    ),
+    [],
+  );
 
   const treeData = useMemo(() => {
     return tables.map(({ id, name: parentName, fields }, i) => {
@@ -32,7 +44,9 @@ export default function SearchBar({ tables }) {
 
   return (
     <TreeSelect
+      ref={treeSelectRef}
       searchPosition="trigger"
+      searchRender={renderSearchInput}
       dropdownStyle={{ maxHeight: 400, overflow: "auto" }}
       treeData={treeData}
       prefix={<IconSearch />}
@@ -50,12 +64,12 @@ export default function SearchBar({ tables }) {
         }));
         document
           .getElementById(`scroll_table_${tableId}`)
-          .scrollIntoView({ behavior: "smooth" });
+          ?.scrollIntoView({ behavior: "smooth" });
 
         if (!children) {
           document
             .getElementById(`scroll_table_${tableId}_input_${id}`)
-            .focus();
+            ?.focus();
         }
       }}
       onChangeWithObject
