@@ -4,9 +4,7 @@ const runtime =
 const trimSlash = (url) => url.replace(/\/+$/, "");
 
 export const backendUrl = trimSlash(
-  runtime.backendUrl ||
-    import.meta.env.VITE_BACKEND_URL ||
-    "http://localhost:5000",
+  runtime.backendUrl || import.meta.env.VITE_BACKEND_URL || "/api",
 );
 
 export const gistBackendUrl = trimSlash(
@@ -14,5 +12,5 @@ export const gistBackendUrl = trimSlash(
     runtime.backendUrl ||
     import.meta.env.VITE_GIST_BACKEND_URL ||
     import.meta.env.VITE_BACKEND_URL ||
-    "http://localhost:5000",
+    "/api",
 );
