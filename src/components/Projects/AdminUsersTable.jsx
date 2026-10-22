@@ -20,7 +20,7 @@ export default function AdminUsersTable({
           checked={isAdmin}
           disabled={
             user.isSuperadmin ||
-            (!isAdmin && !user.emailVerifiedAt) ||
+            (!isAdmin && user.verified === false) ||
             pendingId === user.id
           }
           onChange={(checked) => onToggleAdmin(user, checked)}
