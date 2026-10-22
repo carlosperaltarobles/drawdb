@@ -13,11 +13,7 @@ import { Link } from "react-router-dom";
 import { socials } from "../data/socials";
 import { send } from "../api/email";
 import { useThemedPage } from "../hooks";
-import {
-  attachmentsSize,
-  dataUriToAttachment,
-  MAX_ATTACHMENTS_BYTES,
-} from "../utils/attachments";
+import { readAttachments } from "../utils/attachments";
 import { useTranslation } from "react-i18next";
 
 function Form({ theme }) {
@@ -29,8 +25,21 @@ function Form({ theme }) {
   });
   const [loading, setLoading] = useState(false);
   const uploadRef = useRef();
+  const selectionVersion = useRef(0);
+  const [readingAttachments, setReadingAttachments] = useState(false);
+  const [attachmentError, setAttachmentError] = useState(false);
+
+  useEffect(
+    () => () => {
+      selectionVersion.current += 1;
+    },
+    [],
+  );
 
   const resetForm = () => {
+    selectionVersion.current += 1;
+    setReadingAttachments(false);
+    setAttachmentError(false);
     setData({
       title: "",
       attachments: [],
@@ -42,38 +51,28 @@ function Form({ theme }) {
     }
   };
 
-  const onFileChange = (fileList) => {
-    const attachments = [];
-
-    const processFile = (index) => {
-      const reader = new FileReader();
-
-      reader.onload = (event) => {
-        const dataUri = event.target.result;
-        try {
-          const attachment = dataUriToAttachment(dataUri, fileList[index].name);
-          if (
-            attachmentsSize([...attachments, attachment]) >
-            MAX_ATTACHMENTS_BYTES
-          ) {
-            Toast.error(t("attachments_too_large"));
-            return;
-          }
-          attachments.push(attachment);
-        } catch {
-          Toast.error(t("attachment_failed"));
-        }
-      };
-
-      reader.readAsDataURL(fileList[index].fileInstance);
-    };
-
-    fileList.forEach((_, i) => processFile(i));
-
-    setData((prev) => ({
-      ...prev,
-      attachments: attachments,
-    }));
+  const onFileChange = async (fileList) => {
+    const version = ++selectionVersion.current;
+    setReadingAttachments(true);
+    setAttachmentError(false);
+    setData((prev) => ({ ...prev, attachments: [] }));
+    try {
+      const attachments = await readAttachments(fileList);
+      if (version !== selectionVersion.current) return;
+      setData((prev) => ({ ...prev, attachments }));
+    } catch (error) {
+      if (version !== selectionVersion.current) return;
+      setAttachmentError(true);
+      Toast.error(
+        t(
+          error.message === "attachments_too_large"
+            ? "attachments_too_large"
+            : "attachment_failed",
+        ),
+      );
+    } finally {
+      if (version === selectionVersion.current) setReadingAttachments(false);
+    }
   };
 
   const onSubmit = useCallback(() => {
@@ -129,7 +128,9 @@ function Form({ theme }) {
           <Button
             onClick={onSubmit}
             style={{ padding: "16px 24px" }}
-            disabled={loading || data.title === "" || !data.title}
+            disabled={
+              loading || readingAttachments || attachmentError || !data.title
+            }
           >
             Submit
           </Button>

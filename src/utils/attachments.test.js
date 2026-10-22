@@ -3,6 +3,7 @@ import {
   attachmentsSize,
   dataUriToAttachment,
   MAX_ATTACHMENTS_BYTES,
+  readAttachments,
 } from "./attachments";
 
 describe("dataUriToAttachment", () => {
@@ -58,5 +59,62 @@ describe("attachmentsSize", () => {
       attachmentsSize([{ content: "aG9sYQ==" }, { content: "aG9sYQ==" }]),
     ).toBeGreaterThan(0);
     expect(MAX_ATTACHMENTS_BYTES).toBe(5242880);
+  });
+});
+
+describe("attachment boundaries and reading", () => {
+  it("counts padding exactly, including a full 5 MiB file", () => {
+    expect(attachmentsSize([{ content: "YQ==" }, { content: "YWI=" }])).toBe(3);
+    const content = "A".repeat(6990507) + "=";
+    expect(attachmentsSize([{ content }])).toBe(MAX_ATTACHMENTS_BYTES);
+  });
+
+  it("waits for every file and preserves selection order", async () => {
+    let finishFirst;
+    const files = [
+      { name: "first", fileInstance: { size: 1 } },
+      { name: "second", fileInstance: { size: 2 } },
+    ];
+    const result = readAttachments(files, (file) =>
+      file.size === 1
+        ? new Promise((resolve) => {
+            finishFirst = resolve;
+          })
+        : Promise.resolve("data:text/plain;base64,YWI="),
+    );
+    finishFirst("data:text/plain;base64,YQ==");
+    expect(await result).toEqual([
+      {
+        filename: "first",
+        content: "YQ==",
+        encoding: "base64",
+        contentType: "text/plain",
+      },
+      {
+        filename: "second",
+        content: "YWI=",
+        encoding: "base64",
+        contentType: "text/plain",
+      },
+    ]);
+  });
+
+  it("rejects oversized selections before reading", async () => {
+    await expect(
+      readAttachments(
+        [{ name: "large", fileInstance: { size: MAX_ATTACHMENTS_BYTES + 1 } }],
+        () => {
+          throw new Error("must not read");
+        },
+      ),
+    ).rejects.toThrow("attachments_too_large");
+  });
+
+  it("propagates read failures instead of returning a partial selection", async () => {
+    await expect(
+      readAttachments([{ name: "bad", fileInstance: { size: 1 } }], () =>
+        Promise.reject(new Error("unreadable")),
+      ),
+    ).rejects.toThrow("unreadable");
   });
 });
