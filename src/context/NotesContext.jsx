@@ -9,6 +9,7 @@ import { useUndoRedo, useTransform, useSelect, useCollab } from "../hooks";
 import { Toast } from "@douyinfe/semi-ui";
 import { cascadePosition } from "../utils/rect";
 import { useTranslation } from "react-i18next";
+import { findById, newId, removeById } from "../utils/ids";
 
 export const NotesContext = createContext(null);
 
@@ -24,15 +25,11 @@ export default function NotesContextProvider({ children }) {
   const addNote = (data, addToHistory = true) => {
     let created = data;
     if (data) {
-      setNotes((prev) => {
-        const temp = prev.slice();
-        temp.splice(data.id, 0, data);
-        return temp.map((t, i) => ({ ...t, id: i }));
-      });
+      setNotes((prev) => [...prev, data]);
     } else {
       const height = 88;
       created = {
-        id: notes.length,
+        id: newId(),
         ...cascadePosition(
           { x: transform.pan.x, y: transform.pan.y - height / 2 },
           notes,
@@ -44,7 +41,7 @@ export default function NotesContextProvider({ children }) {
         height,
         width: noteWidth,
       };
-      setNotes((prev) => [...prev, { ...created, id: prev.length }]);
+      setNotes((prev) => [...prev, created]);
     }
     if (addToHistory) {
       setUndoStack((prev) => [
@@ -52,6 +49,7 @@ export default function NotesContextProvider({ children }) {
         {
           action: Action.ADD,
           element: ObjectType.NOTE,
+          data: created,
           message: t("add_note"),
         },
       ]);
@@ -68,22 +66,21 @@ export default function NotesContextProvider({ children }) {
   };
 
   const deleteNote = (id, addToHistory = true) => {
-    if (addToHistory) {
+    const target = findById(notes, id);
+    if (addToHistory && target) {
       Toast.success(t("note_deleted"));
       setUndoStack((prev) => [
         ...prev,
         {
           action: Action.DELETE,
           element: ObjectType.NOTE,
-          data: notes[id],
-          message: t("delete_note", { noteTitle: notes[id].title }),
+          data: target,
+          message: t("delete_note", { noteTitle: target.title }),
         },
       ]);
       setRedoStack([]);
     }
-    setNotes((prev) =>
-      prev.filter((e) => e.id !== id).map((e, i) => ({ ...e, id: i })),
-    );
+    setNotes((prev) => removeById(prev, id));
     if (id === selectedElement.id) {
       setSelectedElement((prev) => ({
         ...prev,

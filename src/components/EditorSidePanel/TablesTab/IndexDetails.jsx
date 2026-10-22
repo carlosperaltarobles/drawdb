@@ -1,4 +1,5 @@
 import { Action, ObjectType } from "../../../data/constants";
+import { removeById } from "../../../utils/ids";
 import { Input, Button, Popover, Checkbox, Select } from "@douyinfe/semi-ui";
 import { IconMore, IconDeleteStroked } from "@douyinfe/semi-icons";
 import { useDiagram, useLayout, useUndoRedo } from "../../../hooks";
@@ -171,12 +172,7 @@ export default function IndexDetails({ data, fields, iid, tid }) {
                 ]);
                 setRedoStack([]);
                 updateTable(tid, {
-                  indices: table.indices
-                    .filter((e) => e.id !== iid)
-                    .map((e, j) => ({
-                      ...e,
-                      id: j,
-                    })),
+                  indices: removeById(table.indices, iid),
                 });
               }}
             >

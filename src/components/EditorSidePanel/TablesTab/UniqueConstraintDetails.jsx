@@ -1,4 +1,5 @@
 import { Action, ObjectType } from "../../../data/constants";
+import { removeById } from "../../../utils/ids";
 import { Input, Button, Popover, Select } from "@douyinfe/semi-ui";
 import { IconMore, IconDeleteStroked } from "@douyinfe/semi-icons";
 import { useDiagram, useLayout, useUndoRedo } from "../../../hooks";
@@ -130,12 +131,7 @@ export default function UniqueConstraintDetails({ data, fields, cid, tid }) {
                 ]);
                 setRedoStack([]);
                 updateTable(tid, {
-                  uniqueConstraints: constraints
-                    .filter((e) => e.id !== cid)
-                    .map((e, j) => ({
-                      ...e,
-                      id: j,
-                    })),
+                  uniqueConstraints: removeById(constraints, cid),
                 });
               }}
             >

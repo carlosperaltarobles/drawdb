@@ -99,6 +99,7 @@ import { applyDiagramPlan } from "../../utils/dbml/applyPlan";
 import { diffDiagram } from "../../utils/dbml/diff";
 import { exportSavedData } from "../../utils/exportSavedData";
 import { nanoid } from "nanoid";
+import { findById, newId, removeById } from "../../utils/ids";
 import { getTableHeight, getTableWidth } from "../../utils/utils";
 import {
   getViewHeight,
@@ -230,9 +231,9 @@ export default function ControlPanel({
       if (a.element === ObjectType.TABLE) {
         deleteTable(a.data.table.id, false);
       } else if (a.element === ObjectType.AREA) {
-        deleteArea(areas[areas.length - 1].id, false);
+        deleteArea(a.data.id, false);
       } else if (a.element === ObjectType.NOTE) {
-        deleteNote(notes[notes.length - 1].id, false);
+        deleteNote(a.data.id, false);
       } else if (a.element === ObjectType.RELATIONSHIP) {
         deleteRelationship(a.data.relationship.id, false);
       } else if (a.element === ObjectType.TYPE) {
@@ -251,13 +252,21 @@ export default function ControlPanel({
       } else if (a.element === ObjectType.AREA) {
         setRedoStack((prev) => [
           ...prev,
-          { ...a, x: areas[a.id].x, y: areas[a.id].y },
+          {
+            ...a,
+            x: findById(areas, a.id).x,
+            y: findById(areas, a.id).y,
+          },
         ]);
         updateArea(a.id, { x: a.x, y: a.y });
       } else if (a.element === ObjectType.NOTE) {
         setRedoStack((prev) => [
           ...prev,
-          { ...a, x: notes[a.id].x, y: notes[a.id].y },
+          {
+            ...a,
+            x: findById(notes, a.id).x,
+            y: findById(notes, a.id).y,
+          },
         ]);
         updateNote(a.id, { x: a.x, y: a.y });
       }
@@ -292,7 +301,7 @@ export default function ControlPanel({
           setRelationships((prev) => {
             let temp = [...prev];
             a.data.relationship.forEach((r) => {
-              temp.splice(r.id, 0, r);
+              temp.push(r);
             });
             return temp;
           });
@@ -305,9 +314,7 @@ export default function ControlPanel({
           });
         } else if (a.component === "index_add") {
           updateTable(a.tid, {
-            indices: table.indices
-              .filter((e) => e.id !== table.indices.length - 1)
-              .map((t, i) => ({ ...t, id: i })),
+            indices: removeById(table.indices, a.data.id),
           });
         } else if (a.component === "index") {
           updateTable(a.tid, {
@@ -321,17 +328,13 @@ export default function ControlPanel({
             ),
           });
         } else if (a.component === "index_delete") {
-          const updatedIndices = table.indices.slice();
-          updatedIndices.splice(a.data.id, 0, a.data);
           updateTable(a.tid, {
-            indices: updatedIndices.map((t, i) => ({ ...t, id: i })),
+            indices: [...table.indices, a.data],
           });
         } else if (a.component === "unique_constraint_add") {
           const constraints = table.uniqueConstraints || [];
           updateTable(a.tid, {
-            uniqueConstraints: constraints
-              .filter((e) => e.id !== constraints.length - 1)
-              .map((t, i) => ({ ...t, id: i })),
+            uniqueConstraints: removeById(constraints, a.data.id),
           });
         } else if (a.component === "unique_constraint") {
           updateTable(a.tid, {
@@ -346,13 +349,8 @@ export default function ControlPanel({
             ),
           });
         } else if (a.component === "unique_constraint_delete") {
-          const updatedConstraints = (table.uniqueConstraints || []).slice();
-          updatedConstraints.splice(a.data.id, 0, a.data);
           updateTable(a.tid, {
-            uniqueConstraints: updatedConstraints.map((t, i) => ({
-              ...t,
-              id: i,
-            })),
+            uniqueConstraints: [...(table.uniqueConstraints || []), a.data],
           });
         } else if (a.component === "self") {
           updateTable(a.tid, a.undo);
@@ -448,9 +446,9 @@ export default function ControlPanel({
       if (a.element === ObjectType.TABLE) {
         addTable(a.data, false);
       } else if (a.element === ObjectType.AREA) {
-        addArea(null, false);
+        addArea(a.data, false);
       } else if (a.element === ObjectType.NOTE) {
-        addNote(null, false);
+        addNote(a.data, false);
       } else if (a.element === ObjectType.RELATIONSHIP) {
         addRelationship(a.data, false);
       } else if (a.element === ObjectType.TYPE) {
@@ -469,13 +467,21 @@ export default function ControlPanel({
       } else if (a.element === ObjectType.AREA) {
         setUndoStack((prev) => [
           ...prev,
-          { ...a, x: areas[a.id].x, y: areas[a.id].y },
+          {
+            ...a,
+            x: findById(areas, a.id).x,
+            y: findById(areas, a.id).y,
+          },
         ]);
         updateArea(a.id, { x: a.x, y: a.y });
       } else if (a.element === ObjectType.NOTE) {
         setUndoStack((prev) => [
           ...prev,
-          { ...a, x: notes[a.id].x, y: notes[a.id].y },
+          {
+            ...a,
+            x: findById(notes, a.id).x,
+            y: findById(notes, a.id).y,
+          },
         ]);
         updateNote(a.id, { x: a.x, y: a.y });
       }
@@ -527,14 +533,7 @@ export default function ControlPanel({
           });
         } else if (a.component === "index_add") {
           updateTable(a.tid, {
-            indices: [
-              ...table.indices,
-              {
-                id: table.indices.length,
-                name: `index_${table.indices.length}`,
-                fields: [],
-              },
-            ],
+            indices: [...table.indices, a.data],
           });
         } else if (a.component === "index") {
           updateTable(a.tid, {
@@ -549,21 +548,12 @@ export default function ControlPanel({
           });
         } else if (a.component === "index_delete") {
           updateTable(a.tid, {
-            indices: table.indices
-              .filter((e) => e.id !== a.data.id)
-              .map((t, i) => ({ ...t, id: i })),
+            indices: removeById(table.indices, a.data.id),
           });
         } else if (a.component === "unique_constraint_add") {
           const constraints = table.uniqueConstraints || [];
           updateTable(a.tid, {
-            uniqueConstraints: [
-              ...constraints,
-              {
-                id: constraints.length,
-                name: `${table.name}_unique_${constraints.length}`,
-                fields: [],
-              },
-            ],
+            uniqueConstraints: [...constraints, a.data],
           });
         } else if (a.component === "unique_constraint") {
           updateTable(a.tid, {
@@ -579,9 +569,10 @@ export default function ControlPanel({
           });
         } else if (a.component === "unique_constraint_delete") {
           updateTable(a.tid, {
-            uniqueConstraints: (table.uniqueConstraints || [])
-              .filter((e) => e.id !== a.data.id)
-              .map((t, i) => ({ ...t, id: i })),
+            uniqueConstraints: removeById(
+              table.uniqueConstraints || [],
+              a.data.id,
+            ),
           });
         } else if (a.component === "self") {
           updateTable(a.tid, a.redo, false);
@@ -916,22 +907,26 @@ export default function ControlPanel({
         });
         break;
       }
-      case ObjectType.NOTE:
+      case ObjectType.NOTE: {
+        const copiedNote = findById(notes, selectedElement.id);
         addNote({
-          ...notes[selectedElement.id],
-          x: notes[selectedElement.id].x + 20,
-          y: notes[selectedElement.id].y + 20,
-          id: notes.length,
+          ...copiedNote,
+          x: copiedNote.x + 20,
+          y: copiedNote.y + 20,
+          id: newId(),
         });
         break;
-      case ObjectType.AREA:
+      }
+      case ObjectType.AREA: {
+        const copiedArea = findById(areas, selectedElement.id);
         addArea({
-          ...areas[selectedElement.id],
-          x: areas[selectedElement.id].x + 20,
-          y: areas[selectedElement.id].y + 20,
-          id: areas.length,
+          ...copiedArea,
+          x: copiedArea.x + 20,
+          y: copiedArea.y + 20,
+          id: newId(),
         });
         break;
+      }
       case ObjectType.VIEW: {
         const copiedView = views.find((v) => v.id === selectedElement.id);
         addView({
@@ -966,12 +961,12 @@ export default function ControlPanel({
         break;
       case ObjectType.NOTE:
         navigator.clipboard
-          .writeText(JSON.stringify({ ...notes[selectedElement.id] }))
+          .writeText(JSON.stringify({ ...findById(notes, selectedElement.id) }))
           .catch(() => Toast.error(t("oops_smth_went_wrong")));
         break;
       case ObjectType.AREA:
         navigator.clipboard
-          .writeText(JSON.stringify({ ...areas[selectedElement.id] }))
+          .writeText(JSON.stringify({ ...findById(areas, selectedElement.id) }))
           .catch(() => Toast.error(t("oops_smth_went_wrong")));
         break;
       case ObjectType.VIEW:
@@ -1027,14 +1022,14 @@ export default function ControlPanel({
           ...obj,
           x: obj.x + 20,
           y: obj.y + 20,
-          id: areas.length,
+          id: newId(),
         });
       } else if (v.validate(obj, noteSchema).valid) {
         addNote({
           ...obj,
           x: obj.x + 20,
           y: obj.y + 20,
-          id: notes.length,
+          id: newId(),
         });
       }
     });

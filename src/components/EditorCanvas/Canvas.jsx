@@ -44,6 +44,7 @@ import {
   resolveViewColumns,
 } from "../../utils/views";
 import { getRectFromEndpoints, isInsideRect } from "../../utils/rect";
+import { findById } from "../../utils/ids";
 import { State, noteWidth } from "../../data/constants";
 import { nanoid } from "nanoid";
 
@@ -557,11 +558,13 @@ export default function Canvas() {
   };
 
   const didResize = (id) => {
+    const area = findById(areas, id);
+    if (!area) return false;
     return !(
-      areas[id].x === areaInitDimensions.x &&
-      areas[id].y === areaInitDimensions.y &&
-      areas[id].width === areaInitDimensions.width &&
-      areas[id].height === areaInitDimensions.height
+      area.x === areaInitDimensions.x &&
+      area.y === areaInitDimensions.y &&
+      area.width === areaInitDimensions.width &&
+      area.height === areaInitDimensions.height
     );
   };
 
@@ -634,15 +637,15 @@ export default function Canvas() {
           element: ObjectType.AREA,
           aid: areaResize.id,
           undo: {
-            ...areas[areaResize.id],
+            ...findById(areas, areaResize.id),
             x: areaInitDimensions.x,
             y: areaInitDimensions.y,
             width: areaInitDimensions.width,
             height: areaInitDimensions.height,
           },
-          redo: areas[areaResize.id],
+          redo: findById(areas, areaResize.id),
           message: t("edit_area", {
-            areaName: areas[areaResize.id].name,
+            areaName: findById(areas, areaResize.id).name,
             extra: "[resize]",
           }),
         },

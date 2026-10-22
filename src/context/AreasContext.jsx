@@ -1,6 +1,7 @@
 import { Toast } from "@douyinfe/semi-ui";
 import { createContext, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { findById, newId, removeById } from "../utils/ids";
 import { Action, ObjectType, defaultBlue } from "../data/constants";
 import { useSelect, useTransform, useUndoRedo, useCollab } from "../hooks";
 import { cascadePosition } from "../utils/rect";
@@ -19,16 +20,12 @@ export default function AreasContextProvider({ children }) {
   const addArea = (data, addToHistory = true) => {
     let created = data;
     if (data) {
-      setAreas((prev) => {
-        const temp = prev.slice();
-        temp.splice(data.id, 0, data);
-        return temp.map((t, i) => ({ ...t, id: i }));
-      });
+      setAreas((prev) => [...prev, data]);
     } else {
       const width = 200;
       const height = 200;
       created = {
-        id: areas.length,
+        id: newId(),
         name: `area_${areas.length}`,
         ...cascadePosition(
           { x: transform.pan.x - width / 2, y: transform.pan.y - height / 2 },
@@ -39,7 +36,7 @@ export default function AreasContextProvider({ children }) {
         color: defaultBlue,
         locked: false,
       };
-      setAreas((prev) => [...prev, { ...created, id: prev.length }]);
+      setAreas((prev) => [...prev, created]);
     }
     if (addToHistory) {
       setUndoStack((prev) => [
@@ -47,6 +44,7 @@ export default function AreasContextProvider({ children }) {
         {
           action: Action.ADD,
           element: ObjectType.AREA,
+          data: created,
           message: t("add_area"),
         },
       ]);
@@ -63,22 +61,21 @@ export default function AreasContextProvider({ children }) {
   };
 
   const deleteArea = (id, addToHistory = true) => {
-    if (addToHistory) {
+    const target = findById(areas, id);
+    if (addToHistory && target) {
       Toast.success(t("area_deleted"));
       setUndoStack((prev) => [
         ...prev,
         {
           action: Action.DELETE,
           element: ObjectType.AREA,
-          data: areas[id],
-          message: t("delete_area", { areaName: areas[id].name }),
+          data: target,
+          message: t("delete_area", { areaName: target.name }),
         },
       ]);
       setRedoStack([]);
     }
-    setAreas((prev) =>
-      prev.filter((e) => e.id !== id).map((e, i) => ({ ...e, id: i })),
-    );
+    setAreas((prev) => removeById(prev, id));
     if (id === selectedElement.id) {
       setSelectedElement((prev) => ({
         ...prev,

@@ -46,6 +46,7 @@ import Open from "./Open";
 import Rename from "./Rename";
 import Share from "./Share";
 import { mergeCustomTypes } from "../../../utils/customTypes";
+import { newId } from "../../../utils/ids";
 
 const extensionToLanguage = {
   md: "markdown",
@@ -177,12 +178,10 @@ export default function Modal({
       setViews([]);
     } else {
       setTables((prev) => [...prev, ...diagramData.tables]);
-      setRelationships((prev) =>
-        [...prev, ...diagramData.relationships].map((r, i) => ({
-          ...r,
-          id: i,
-        })),
-      );
+      setRelationships((prev) => [
+        ...prev,
+        ...diagramData.relationships.map((r) => ({ ...r, id: newId() })),
+      ]);
       if (databases[database].hasTypes && diagramData.types.length)
         setTypes((prev) => [...prev, ...diagramData.types]);
       if (databases[database].hasEnums && diagramData.enums.length)

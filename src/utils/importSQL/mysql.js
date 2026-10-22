@@ -1,3 +1,4 @@
+import { newId } from "../ids";
 import { nanoid } from "nanoid";
 import { Cardinality, DB } from "../../data/constants";
 import { dbToTypes } from "../../data/datatypes";
@@ -118,11 +119,7 @@ export function fromMySQL(ast, diagramDb = DB.GENERIC) {
               );
               const startFieldName = startFieldNames[0];
 
-              const endTable = findReferencedTable(
-                tables,
-                table,
-                endTableName,
-              );
+              const endTable = findReferencedTable(tables, table, endTableName);
               if (!endTable) return;
 
               // Resolve every column pair (composite FKs carry more than one).
@@ -186,8 +183,8 @@ export function fromMySQL(ast, diagramDb = DB.GENERIC) {
                 d.index ||
                 `${table.name}_unique_${table.uniqueConstraints.length}`;
               table.uniqueConstraints.push({ name, fields });
-              table.uniqueConstraints.forEach((u, j) => {
-                u.id = j;
+              table.uniqueConstraints.forEach((u) => {
+                u.id ??= newId();
               });
             }
           }
@@ -211,8 +208,8 @@ export function fromMySQL(ast, diagramDb = DB.GENERIC) {
 
         if (table) {
           table.indices.push(index);
-          table.indices.forEach((i, j) => {
-            i.id = j;
+          table.indices.forEach((i) => {
+            i.id ??= newId();
           });
         }
       }
@@ -264,9 +261,7 @@ export function fromMySQL(ast, diagramDb = DB.GENERIC) {
             const sf = startTable.fields.find(
               (f) => f.name === startFieldNames[i],
             );
-            const ef = endTable.fields.find(
-              (f) => f.name === endFieldNames[i],
-            );
+            const ef = endTable.fields.find((f) => f.name === endFieldNames[i]);
             if (!sf || !ef) break;
             fieldPairs.push({ startFieldId: sf.id, endFieldId: ef.id });
           }

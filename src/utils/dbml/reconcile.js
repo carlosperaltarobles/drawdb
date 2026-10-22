@@ -136,10 +136,10 @@ function reconcileFields(parsedFields, baseFields, database) {
   });
 }
 
-function mergeIndexEntry(parsed, base, position) {
+function mergeIndexEntry(parsed, base) {
   return {
     ...base,
-    id: position,
+    id: base?.id ?? nanoid(),
     name: parsed.name,
     fields: sameList(base?.fields, parsed.fields) ? base.fields : parsed.fields,
   };
@@ -158,15 +158,13 @@ function reconcileIndexes(parsedIndexes, baseTable) {
   for (const parsed of parsedIndexes) {
     if (parsed.unique && constraintNames.has(parsed.name)) {
       const base = baseConstraints.find((c) => c.name === parsed.name);
-      uniqueConstraints.push(
-        mergeIndexEntry(parsed, base, uniqueConstraints.length),
-      );
+      uniqueConstraints.push(mergeIndexEntry(parsed, base));
     } else {
       const base =
         baseIndices.find((index) => index.name === parsed.name) ??
         baseIndices[indices.length];
       indices.push({
-        ...mergeIndexEntry(parsed, base, indices.length),
+        ...mergeIndexEntry(parsed, base),
         unique: parsed.unique,
       });
     }
@@ -193,8 +191,8 @@ function createTable(parsed) {
     comment: parsed.comment,
     color: parsed.color ?? defaultBlue,
     fields: parsed.fields.map(createField),
-    indices: parsed.indices.map((index, i) => ({
-      id: i,
+    indices: parsed.indices.map((index) => ({
+      id: nanoid(),
       name: index.name,
       fields: index.fields,
       unique: index.unique,

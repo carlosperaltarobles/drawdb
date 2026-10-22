@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { newId } from "../../../utils/ids";
 import {
   Collapse,
   Input,
@@ -86,6 +87,12 @@ export default function TableInfo({ data }) {
 
   const addIndex = () => {
     setIndexActiveKey("1");
+    const newIndex = {
+      id: newId(),
+      name: `${data.name}_index_${data.indices.length}`,
+      unique: false,
+      fields: [],
+    };
     setUndoStack((prev) => [
       ...prev,
       {
@@ -93,6 +100,7 @@ export default function TableInfo({ data }) {
         element: ObjectType.TABLE,
         component: "index_add",
         tid: data.id,
+        data: newIndex,
         message: t("edit_table", {
           tableName: data.name,
           extra: "[add index]",
@@ -101,21 +109,18 @@ export default function TableInfo({ data }) {
     ]);
     setRedoStack([]);
     updateTable(data.id, {
-      indices: [
-        ...data.indices,
-        {
-          id: data.indices.length,
-          name: `${data.name}_index_${data.indices.length}`,
-          unique: false,
-          fields: [],
-        },
-      ],
+      indices: [...data.indices, newIndex],
     });
   };
 
   const addUniqueConstraint = () => {
     setUniqueActiveKey("1");
     const constraints = data.uniqueConstraints || [];
+    const newConstraint = {
+      id: newId(),
+      name: `${data.name}_unique_${constraints.length}`,
+      fields: [],
+    };
     setUndoStack((prev) => [
       ...prev,
       {
@@ -123,6 +128,7 @@ export default function TableInfo({ data }) {
         element: ObjectType.TABLE,
         component: "unique_constraint_add",
         tid: data.id,
+        data: newConstraint,
         message: t("edit_table", {
           tableName: data.name,
           extra: "[add unique constraint]",
@@ -131,14 +137,7 @@ export default function TableInfo({ data }) {
     ]);
     setRedoStack([]);
     updateTable(data.id, {
-      uniqueConstraints: [
-        ...constraints,
-        {
-          id: constraints.length,
-          name: `${data.name}_unique_${constraints.length}`,
-          fields: [],
-        },
-      ],
+      uniqueConstraints: [...constraints, newConstraint],
     });
   };
 
@@ -254,11 +253,11 @@ export default function TableInfo({ data }) {
             accordion
           >
             <Collapse.Panel header={t("indices")} itemKey="1">
-              {data.indices.map((idx, k) => (
+              {data.indices.map((idx) => (
                 <IndexDetails
-                  key={"index_" + k}
+                  key={"index_" + idx.id}
                   data={idx}
-                  iid={k}
+                  iid={idx.id}
                   tid={data.id}
                   fields={data.fields.map((e) => ({
                     value: e.name,
@@ -285,11 +284,11 @@ export default function TableInfo({ data }) {
             accordion
           >
             <Collapse.Panel header={t("unique_constraints")} itemKey="1">
-              {data.uniqueConstraints.map((uc, k) => (
+              {data.uniqueConstraints.map((uc) => (
                 <UniqueConstraintDetails
-                  key={"unique_constraint_" + k}
+                  key={"unique_constraint_" + uc.id}
                   data={uc}
-                  cid={k}
+                  cid={uc.id}
                   tid={data.id}
                   fields={data.fields.map((e) => ({
                     value: e.name,
@@ -318,34 +317,34 @@ export default function TableInfo({ data }) {
             <Collapse.Panel header={t("comment")} itemKey="1">
               <TextArea
                 field="comment"
-              value={data.comment}
-              readonly={layout.readOnly}
-              autosize
-              placeholder={t("comment")}
-              rows={1}
-              onChange={(value) =>
-                updateTable(data.id, { comment: value }, false)
-              }
-              onFocus={(e) => setEditField({ comment: e.target.value })}
-              onBlur={(e) => {
-                if (e.target.value === editField.comment) return;
-                setUndoStack((prev) => [
-                  ...prev,
-                  {
-                    action: Action.EDIT,
-                    element: ObjectType.TABLE,
-                    component: "self",
-                    tid: data.id,
-                    undo: editField,
-                    redo: { comment: e.target.value },
-                    message: t("edit_table", {
-                      tableName: e.target.value,
-                      extra: "[comment]",
-                    }),
-                  },
-                ]);
-                setRedoStack([]);
-              }}
+                value={data.comment}
+                readonly={layout.readOnly}
+                autosize
+                placeholder={t("comment")}
+                rows={1}
+                onChange={(value) =>
+                  updateTable(data.id, { comment: value }, false)
+                }
+                onFocus={(e) => setEditField({ comment: e.target.value })}
+                onBlur={(e) => {
+                  if (e.target.value === editField.comment) return;
+                  setUndoStack((prev) => [
+                    ...prev,
+                    {
+                      action: Action.EDIT,
+                      element: ObjectType.TABLE,
+                      component: "self",
+                      tid: data.id,
+                      undo: editField,
+                      redo: { comment: e.target.value },
+                      message: t("edit_table", {
+                        tableName: e.target.value,
+                        extra: "[comment]",
+                      }),
+                    },
+                  ]);
+                  setRedoStack([]);
+                }}
               />
             </Collapse.Panel>
           </Collapse>

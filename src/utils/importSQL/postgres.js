@@ -1,3 +1,4 @@
+import { newId } from "../ids";
 import { nanoid } from "nanoid";
 import { Cardinality, Constraint, DB } from "../../data/constants";
 import { dbToTypes } from "../../data/datatypes";
@@ -203,8 +204,8 @@ export function fromPostgres(ast, diagramDb = DB.GENERIC) {
                 d.index ||
                 `${table.name}_unique_${table.uniqueConstraints.length}`;
               table.uniqueConstraints.push({ name, fields });
-              table.uniqueConstraints.forEach((u, j) => {
-                u.id = j;
+              table.uniqueConstraints.forEach((u) => {
+                u.id ??= newId();
               });
             }
           }
@@ -275,8 +276,8 @@ export function fromPostgres(ast, diagramDb = DB.GENERIC) {
 
         if (table) {
           table.indices.push(index);
-          table.indices.forEach((i, j) => {
-            i.id = j;
+          table.indices.forEach((i) => {
+            i.id ??= newId();
           });
         }
       } else if (e.keyword === "type") {
@@ -284,7 +285,7 @@ export function fromPostgres(ast, diagramDb = DB.GENERIC) {
           const newEnum = {
             name: e.name.name,
             values: e.create_definitions.value.map((x) => x.value),
-            id : nanoid()
+            id: nanoid(),
           };
           enums.push(newEnum);
         } else if (Array.isArray(e.create_definitions)) {

@@ -1,3 +1,4 @@
+import { newId } from "./ids";
 import { dbToTypes } from "../data/datatypes";
 import { arrangeTables } from "./arrangeTables";
 import { jsonDiagramIsValid } from "./validateSchema";
@@ -8,7 +9,7 @@ const TYPE_ALIASES = {
   BOOL: ["BOOLEAN"],
   BOOLEAN: ["BOOL", "BIT"],
   "CHARACTER VARYING": ["VARCHAR"],
-  "CHARACTER": ["CHAR"],
+  CHARACTER: ["CHAR"],
   "TIMESTAMP WITH TIME ZONE": ["TIMESTAMPTZ", "TIMESTAMP"],
   "TIMESTAMP WITHOUT TIME ZONE": ["TIMESTAMP", "DATETIME"],
   "TIME WITH TIME ZONE": ["TIMETZ", "TIME"],
@@ -67,13 +68,18 @@ export function normalizeAiDiagram(raw, database) {
 
   const declaredNames = new Map();
   for (const entry of [...enums, ...types]) {
-    if (entry?.name) declaredNames.set(String(entry.name).toUpperCase(), entry.name);
+    if (entry?.name)
+      declaredNames.set(String(entry.name).toUpperCase(), entry.name);
   }
 
   const tables = raw.tables.map((table) => ({
     ...table,
     fields: (table.fields ?? []).map((field) => {
-      const { type, warning } = resolveType(field.type, validTypes, declaredNames);
+      const { type, warning } = resolveType(
+        field.type,
+        validTypes,
+        declaredNames,
+      );
       if (warning) warnings.push(warning);
       return { ...field, type };
     }),
@@ -97,9 +103,9 @@ export function normalizeAiDiagram(raw, database) {
 
   const diagram = {
     tables,
-    relationships: relationships.map((relationship, id) => ({
+    relationships: relationships.map((relationship) => ({
       ...relationship,
-      id,
+      id: newId(),
     })),
     enums,
     types,

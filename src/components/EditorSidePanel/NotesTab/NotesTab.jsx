@@ -5,6 +5,7 @@ import Empty from "../Empty";
 import SearchBar from "./SearchBar";
 import NoteInfo from "./NoteInfo";
 import { useTranslation } from "react-i18next";
+import { resolveId } from "../../../utils/ids";
 
 export default function NotesTab() {
   const { notes, addNote } = useNotes();
@@ -19,7 +20,7 @@ export default function NotesTab() {
           setActiveKey={(activeKey) =>
             setSelectedElement((prev) => ({
               ...prev,
-              id: parseInt(activeKey),
+              id: resolveId(notes, activeKey),
             }))
           }
         />
@@ -44,14 +45,14 @@ export default function NotesTab() {
           onChange={(activeKey) => {
             setSelectedElement((prev) => ({
               ...prev,
-              id: parseInt(activeKey),
+              id: resolveId(notes, activeKey),
               open: true,
             }));
           }}
           accordion
         >
-          {notes.map((n, i) => (
-            <NoteInfo data={n} key={i} nid={i} />
+          {notes.map((n) => (
+            <NoteInfo data={n} key={n.id} />
           ))}
         </Collapse>
       )}

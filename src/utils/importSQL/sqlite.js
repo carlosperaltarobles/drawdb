@@ -1,3 +1,4 @@
+import { newId } from "../ids";
 import { nanoid } from "nanoid";
 import { Cardinality, DB } from "../../data/constants";
 import { dbToTypes } from "../../data/datatypes";
@@ -203,8 +204,8 @@ export function fromSQLite(ast, diagramDb = DB.GENERIC) {
                 d.index ||
                 `${table.name}_unique_${table.uniqueConstraints.length}`;
               table.uniqueConstraints.push({ name, fields });
-              table.uniqueConstraints.forEach((u, j) => {
-                u.id = j;
+              table.uniqueConstraints.forEach((u) => {
+                u.id ??= newId();
               });
             }
           }
@@ -221,8 +222,8 @@ export function fromSQLite(ast, diagramDb = DB.GENERIC) {
 
         if (table) {
           table.indices.push(index);
-          table.indices.forEach((i, j) => {
-            i.id = j;
+          table.indices.forEach((i) => {
+            i.id ??= newId();
           });
         }
       }

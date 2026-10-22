@@ -1,3 +1,4 @@
+import { newId } from "../ids";
 import { nanoid } from "nanoid";
 import { Cardinality, Constraint, DB } from "../../data/constants";
 import { dbToTypes } from "../../data/datatypes";
@@ -92,8 +93,8 @@ export function fromOracleSQL(ast, diagramDb = DB.GENERIC) {
                   ? d.name
                   : `${table.name}_unique_${table.uniqueConstraints.length}`;
               table.uniqueConstraints.push({ name, fields });
-              table.uniqueConstraints.forEach((u, j) => {
-                u.id = j;
+              table.uniqueConstraints.forEach((u) => {
+                u.id ??= newId();
               });
               return;
             }
