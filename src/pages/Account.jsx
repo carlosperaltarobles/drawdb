@@ -4,11 +4,10 @@ import { Button, Input, Toast } from "@douyinfe/semi-ui";
 import { useTranslation } from "react-i18next";
 import AuthLayout from "../components/Auth/AuthLayout";
 import ErrorBanner from "../components/Auth/ErrorBanner";
+import { MIN_PASSWORD_LENGTH } from "../data/constants";
 import useSubmit from "../components/Auth/useSubmit";
 import { changePassword } from "../api/auth";
 import { useAuth } from "../hooks";
-
-const MIN_PASSWORD_LENGTH = 10;
 
 export default function Account() {
   const { t } = useTranslation();
@@ -24,10 +23,10 @@ export default function Account() {
     Toast.success(t("password_updated"));
   });
 
-  const signOut = async () => {
+  const signOut = useSubmit(async () => {
     await logout();
     navigate("/login", { replace: true });
-  };
+  });
 
   return (
     <AuthLayout title={t("account")}>
@@ -38,12 +37,14 @@ export default function Account() {
         <ErrorBanner message={error} />
         <Input
           mode="password"
+          autoComplete="current-password"
           placeholder={t("current_password")}
           value={currentPassword}
           onChange={setCurrentPassword}
         />
         <Input
           mode="password"
+          autoComplete="new-password"
           placeholder={t("new_password_min_length", {
             count: MIN_PASSWORD_LENGTH,
           })}
@@ -62,9 +63,15 @@ export default function Account() {
           {t("change_password")}
         </Button>
       </form>
+      <ErrorBanner message={signOut.error} />
       <div className="text-sm flex justify-between">
         <Link to="/projects">{t("projects")}</Link>
-        <Button type="tertiary" size="small" onClick={signOut}>
+        <Button
+          type="tertiary"
+          size="small"
+          loading={signOut.loading}
+          onClick={signOut.submit}
+        >
           {t("logout")}
         </Button>
       </div>

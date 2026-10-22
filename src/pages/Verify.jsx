@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Spin } from "@douyinfe/semi-ui";
 import { useTranslation } from "react-i18next";
@@ -14,22 +14,27 @@ export default function Verify() {
   const { setUser } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const [error, setError] = useState("");
+  const token = params.get("token");
+  const [failure, setFailure] = useState(null);
+  const verifiedToken = useRef(null);
 
   useEffect(() => {
-    verify(params.get("token"))
+    if (verifiedToken.current === token) return;
+    verifiedToken.current = token;
+
+    verify(token)
       .then((res) => {
         setUser(res.user);
         navigate("/projects", { replace: true });
       })
-      .catch((err) => setError(messageForError(errorCode(err), t)));
-  }, [params, setUser, navigate, t]);
+      .catch((err) => setFailure({ code: errorCode(err) }));
+  }, [token, setUser, navigate]);
 
   return (
     <AuthLayout title={t("verify_account")}>
-      {error ? (
+      {failure ? (
         <>
-          <ErrorBanner message={error} />
+          <ErrorBanner message={messageForError(failure.code, t)} />
           <Link to="/login">{t("login")}</Link>
         </>
       ) : (

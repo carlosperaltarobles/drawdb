@@ -4,10 +4,9 @@ import { Button, Input, Toast } from "@douyinfe/semi-ui";
 import { useTranslation } from "react-i18next";
 import AuthLayout from "../components/Auth/AuthLayout";
 import ErrorBanner from "../components/Auth/ErrorBanner";
+import { MIN_PASSWORD_LENGTH } from "../data/constants";
 import useSubmit from "../components/Auth/useSubmit";
 import { reset } from "../api/auth";
-
-const MIN_PASSWORD_LENGTH = 10;
 
 export default function Reset() {
   const { t } = useTranslation();
@@ -27,6 +26,7 @@ export default function Reset() {
         <ErrorBanner message={error} />
         <Input
           mode="password"
+          autoComplete="new-password"
           placeholder={t("password_min_length", { count: MIN_PASSWORD_LENGTH })}
           value={password}
           onChange={setPassword}

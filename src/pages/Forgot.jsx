@@ -26,6 +26,7 @@ export default function Forgot() {
           <ErrorBanner message={error} />
           <Input
             type="email"
+            autoComplete="email"
             placeholder={t("email")}
             value={email}
             onChange={setEmail}

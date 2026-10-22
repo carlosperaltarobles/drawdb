@@ -19,7 +19,11 @@ import Projects from "./pages/Projects";
 import ProjectPage from "./pages/ProjectPage";
 import AdminUsers from "./pages/AdminUsers";
 import AuthContextProvider from "./context/AuthContext";
-import { RequireAuth, RequireAdmin } from "./components/Auth/RequireAuth";
+import {
+  RequireAuth,
+  RequireAdmin,
+  GuestOnly,
+} from "./components/Auth/RequireAuth";
 import SettingsContextProvider from "./context/SettingsContext";
 import NotFound from "./pages/NotFound";
 import MigrationBanner, { isLegacyHost } from "./components/MigrationBanner";
@@ -27,8 +31,10 @@ import MigrationBanner, { isLegacyHost } from "./components/MigrationBanner";
 export default function App() {
   const routes = (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
+      <Route element={<GuestOnly />}>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+      </Route>
       <Route path="/verify" element={<Verify />} />
       <Route path="/forgot" element={<Forgot />} />
       <Route path="/reset" element={<Reset />} />

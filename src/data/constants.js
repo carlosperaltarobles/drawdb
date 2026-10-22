@@ -124,3 +124,5 @@ export const IMPORT_FROM = {
   JSON: 0,
   DBML: 1,
 };
+
+export const MIN_PASSWORD_LENGTH = 10;

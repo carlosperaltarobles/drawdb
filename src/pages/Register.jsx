@@ -4,10 +4,9 @@ import { Banner, Button, Input, Toast } from "@douyinfe/semi-ui";
 import { useTranslation } from "react-i18next";
 import AuthLayout from "../components/Auth/AuthLayout";
 import ErrorBanner from "../components/Auth/ErrorBanner";
+import { MIN_PASSWORD_LENGTH } from "../data/constants";
 import useSubmit from "../components/Auth/useSubmit";
 import { register, resend } from "../api/auth";
-
-const MIN_PASSWORD_LENGTH = 10;
 
 export default function Register() {
   const { t } = useTranslation();
@@ -47,12 +46,14 @@ export default function Register() {
         <Input placeholder={t("name")} value={name} onChange={setName} />
         <Input
           type="email"
+          autoComplete="email"
           placeholder={t("email")}
           value={email}
           onChange={setEmail}
         />
         <Input
           mode="password"
+          autoComplete="new-password"
           placeholder={t("password_min_length", { count: MIN_PASSWORD_LENGTH })}
           value={password}
           onChange={setPassword}
