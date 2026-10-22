@@ -1,7 +1,7 @@
 import { Toast } from "@douyinfe/semi-ui";
 import { createContext, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { findById, newId, removeById } from "../utils/ids";
+import { findById, insertAt, newId, removeById } from "../utils/ids";
 import { Action, ObjectType, defaultBlue } from "../data/constants";
 import { useSelect, useTransform, useUndoRedo, useCollab } from "../hooks";
 import { cascadePosition } from "../utils/rect";
@@ -17,10 +17,10 @@ export default function AreasContextProvider({ children }) {
   const { emitDelta, isApplyingRemoteRef } = useCollab();
   const shouldEmit = () => !isApplyingRemoteRef?.current;
 
-  const addArea = (data, addToHistory = true) => {
+  const addArea = (data, addToHistory = true, index) => {
     let created = data;
     if (data) {
-      setAreas((prev) => [...prev, data]);
+      setAreas((prev) => insertAt(prev, data, index));
     } else {
       const width = 200;
       const height = 200;
@@ -70,6 +70,7 @@ export default function AreasContextProvider({ children }) {
           action: Action.DELETE,
           element: ObjectType.AREA,
           data: target,
+          index: areas.indexOf(target),
           message: t("delete_area", { areaName: target.name }),
         },
       ]);

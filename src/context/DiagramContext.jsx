@@ -225,6 +225,7 @@ export default function DiagramContextProvider({ children }) {
             field: field,
             index: fields.findIndex((f) => f.id === field.id),
             relationship: rels,
+            relationshipIndices: rels.map((r) => relationships.indexOf(r)),
           },
           message: t("edit_table", {
             tableName: name,

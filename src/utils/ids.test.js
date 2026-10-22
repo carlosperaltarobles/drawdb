@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { findById, newId, removeById, resolveId } from "./ids";
+import { findById, insertAt, newId, removeById, resolveId } from "./ids";
 
 describe("ids", () => {
   it("findById works with string and legacy numeric ids", () => {
@@ -28,5 +28,21 @@ describe("ids", () => {
     expect(resolveId(list, "0")).toBe(0);
     expect(resolveId(list, "b")).toBe("b");
     expect(resolveId(list, "nope")).toBe("nope");
+  });
+});
+
+describe("insertAt", () => {
+  it("restores an item at its original position", () => {
+    const list = [{ id: "a" }, { id: "c" }];
+    expect(insertAt(list, { id: "b" }, 1).map((e) => e.id)).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
+  });
+
+  it("appends when the index is missing or beyond the end", () => {
+    expect(insertAt([1], 2)).toEqual([1, 2]);
+    expect(insertAt([1], 2, 9)).toEqual([1, 2]);
   });
 });

@@ -121,6 +121,7 @@ export default function UniqueConstraintDetails({ data, fields, cid, tid }) {
                     action: Action.EDIT,
                     element: ObjectType.TABLE,
                     component: "unique_constraint_delete",
+                    index: constraints.indexOf(data),
                     tid: tid,
                     data: data,
                     message: t("edit_table", {

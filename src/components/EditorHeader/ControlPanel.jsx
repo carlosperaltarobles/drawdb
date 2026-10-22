@@ -99,7 +99,7 @@ import { applyDiagramPlan } from "../../utils/dbml/applyPlan";
 import { diffDiagram } from "../../utils/dbml/diff";
 import { exportSavedData } from "../../utils/exportSavedData";
 import { nanoid } from "nanoid";
-import { findById, newId, removeById } from "../../utils/ids";
+import { findById, insertAt, newId, removeById } from "../../utils/ids";
 import { getTableHeight, getTableWidth } from "../../utils/utils";
 import {
   getViewHeight,
@@ -277,9 +277,9 @@ export default function ControlPanel({
       } else if (a.element === ObjectType.RELATIONSHIP) {
         addRelationship(a.data, false);
       } else if (a.element === ObjectType.NOTE) {
-        addNote(a.data, false);
+        addNote(a.data, false, a.index);
       } else if (a.element === ObjectType.AREA) {
-        addArea(a.data, false);
+        addArea(a.data, false, a.index);
       } else if (a.element === ObjectType.TYPE) {
         addType(a.data, false);
       } else if (a.element === ObjectType.ENUM) {
@@ -299,11 +299,11 @@ export default function ControlPanel({
           updateField(a.tid, a.fid, a.undo);
         } else if (a.component === "field_delete") {
           setRelationships((prev) => {
-            let temp = [...prev];
-            a.data.relationship.forEach((r) => {
-              temp.push(r);
-            });
-            return temp;
+            return a.data.relationship.reduce(
+              (restored, r, i) =>
+                insertAt(restored, r, a.data.relationshipIndices[i]),
+              prev,
+            );
           });
           const updatedFields = table.fields.slice();
           updatedFields.splice(a.data.index, 0, a.data.field);
@@ -329,7 +329,7 @@ export default function ControlPanel({
           });
         } else if (a.component === "index_delete") {
           updateTable(a.tid, {
-            indices: [...table.indices, a.data],
+            indices: insertAt(table.indices, a.data, a.index),
           });
         } else if (a.component === "unique_constraint_add") {
           const constraints = table.uniqueConstraints || [];
@@ -350,7 +350,11 @@ export default function ControlPanel({
           });
         } else if (a.component === "unique_constraint_delete") {
           updateTable(a.tid, {
-            uniqueConstraints: [...(table.uniqueConstraints || []), a.data],
+            uniqueConstraints: insertAt(
+              table.uniqueConstraints || [],
+              a.data,
+              a.index,
+            ),
           });
         } else if (a.component === "self") {
           updateTable(a.tid, a.undo);
@@ -1048,9 +1052,9 @@ export default function ControlPanel({
     if (typeof extensions.cloudSave === "function") {
       // TODO: dont have blank here have null
       const isNew = diagramId === "blank";
-      const newId = isNew ? uuidv4() : diagramId;
+      const savedDiagramId = isNew ? uuidv4() : diagramId;
       const diagramData = {
-        diagramId: newId,
+        diagramId: savedDiagramId,
         database,
         name: title,
         gistId: gistId ?? "",
@@ -1069,7 +1073,7 @@ export default function ControlPanel({
       try {
         await extensions.cloudSave(diagramData, { isNew });
         if (isNew) {
-          navigate(`/editor/diagrams/${newId}`, { replace: true });
+          navigate(`/editor/diagrams/${savedDiagramId}`, { replace: true });
         }
         setSaveState(State.SAVED);
         if (typeof setLastSaved === "function") {
@@ -1108,9 +1112,9 @@ export default function ControlPanel({
   const saveDiagramAs = () => setModal(MODAL.SAVEAS);
 
   const saveAsCopy = async (newTitle) => {
-    const newId = uuidv4();
+    const copyDiagramId = uuidv4();
     const diagramData = {
-      diagramId: newId,
+      diagramId: copyDiagramId,
       database,
       name: newTitle,
       gistId: "",
@@ -1160,7 +1164,7 @@ export default function ControlPanel({
           {t("saved_as_copy")}{" "}
           <Typography.Text
             link={{
-              href: `/editor/diagrams/${newId}${window.location.search}`,
+              href: `/editor/diagrams/${copyDiagramId}${window.location.search}`,
               target: "_blank",
               rel: "noopener noreferrer",
             }}

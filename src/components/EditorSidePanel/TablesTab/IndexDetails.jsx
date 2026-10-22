@@ -162,6 +162,7 @@ export default function IndexDetails({ data, fields, iid, tid }) {
                     action: Action.EDIT,
                     element: ObjectType.TABLE,
                     component: "index_delete",
+                    index: table.indices.indexOf(data),
                     tid: tid,
                     data: data,
                     message: t("edit_table", {

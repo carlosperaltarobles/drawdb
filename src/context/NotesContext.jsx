@@ -9,7 +9,7 @@ import { useUndoRedo, useTransform, useSelect, useCollab } from "../hooks";
 import { Toast } from "@douyinfe/semi-ui";
 import { cascadePosition } from "../utils/rect";
 import { useTranslation } from "react-i18next";
-import { findById, newId, removeById } from "../utils/ids";
+import { findById, insertAt, newId, removeById } from "../utils/ids";
 
 export const NotesContext = createContext(null);
 
@@ -22,10 +22,10 @@ export default function NotesContextProvider({ children }) {
   const { emitDelta, isApplyingRemoteRef } = useCollab();
   const shouldEmit = () => !isApplyingRemoteRef?.current;
 
-  const addNote = (data, addToHistory = true) => {
+  const addNote = (data, addToHistory = true, index) => {
     let created = data;
     if (data) {
-      setNotes((prev) => [...prev, data]);
+      setNotes((prev) => insertAt(prev, data, index));
     } else {
       const height = 88;
       created = {
@@ -75,6 +75,7 @@ export default function NotesContextProvider({ children }) {
           action: Action.DELETE,
           element: ObjectType.NOTE,
           data: target,
+          index: notes.indexOf(target),
           message: t("delete_note", { noteTitle: target.title }),
         },
       ]);

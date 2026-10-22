@@ -1,4 +1,4 @@
-import { nanoid } from "nanoid";
+import { newId } from "../ids";
 import { defaultBlue } from "../../data/constants";
 import { arrangeTables } from "../arrangeTables";
 import { getTableWidth, isKeyword } from "../utils";
@@ -83,7 +83,7 @@ function resolveSize(parsed, base, type, database) {
 
 function createField(parsed) {
   const field = {
-    id: nanoid(),
+    id: newId(),
     name: parsed.name,
     type: parsed.type,
     default: parsed.default,
@@ -139,7 +139,7 @@ function reconcileFields(parsedFields, baseFields, database) {
 function mergeIndexEntry(parsed, base) {
   return {
     ...base,
-    id: base?.id ?? nanoid(),
+    id: base?.id ?? newId(),
     name: parsed.name,
     fields: sameList(base?.fields, parsed.fields) ? base.fields : parsed.fields,
   };
@@ -160,9 +160,7 @@ function reconcileIndexes(parsedIndexes, baseTable) {
       const base = baseConstraints.find((c) => c.name === parsed.name);
       uniqueConstraints.push(mergeIndexEntry(parsed, base));
     } else {
-      const base =
-        baseIndices.find((index) => index.name === parsed.name) ??
-        baseIndices[indices.length];
+      const base = baseIndices.find((index) => index.name === parsed.name);
       indices.push({
         ...mergeIndexEntry(parsed, base),
         unique: parsed.unique,
@@ -186,13 +184,13 @@ function mergeTable(parsed, base, database) {
 
 function createTable(parsed) {
   return {
-    id: nanoid(),
+    id: newId(),
     name: parsed.name,
     comment: parsed.comment,
     color: parsed.color ?? defaultBlue,
     fields: parsed.fields.map(createField),
     indices: parsed.indices.map((index) => ({
-      id: nanoid(),
+      id: newId(),
       name: index.name,
       fields: index.fields,
       unique: index.unique,
@@ -238,7 +236,7 @@ function reconcileEnums(parsedEnums, baseEnums) {
     const base = matched.get(i);
     return {
       ...base,
-      id: base?.id ?? nanoid(),
+      id: base?.id ?? newId(),
       name: parsed.name,
       values: sameList(base?.values, parsed.values)
         ? base.values
@@ -309,7 +307,7 @@ function reconcileRelationships(
 
     return {
       ...base,
-      id: base?.id ?? nanoid(),
+      id: base?.id ?? newId(),
       name: parsed.name,
       startTableId: endpoints.startTableId,
       endTableId: endpoints.endTableId,

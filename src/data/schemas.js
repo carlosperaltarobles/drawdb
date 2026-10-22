@@ -82,7 +82,7 @@ export const tableSchema = {
 export const areaSchema = {
   type: "object",
   properties: {
-    id: { type: "integer" },
+    id: { type: ["integer", "string"] },
     name: { type: "string" },
     x: { type: "number" },
     y: { type: "number" },
@@ -97,7 +97,7 @@ export const areaSchema = {
 export const noteSchema = {
   type: "object",
   properties: {
-    id: { type: "integer" },
+    id: { type: ["integer", "string"] },
     x: { type: "number" },
     y: { type: "number" },
     title: { type: "string" },
