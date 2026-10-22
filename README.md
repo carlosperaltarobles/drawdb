@@ -48,17 +48,24 @@ docker build -t drawdb .
 docker run -p 3000:80 drawdb
 ```
 
-If you want to enable sharing, set up the [server](https://github.com/drawdb-io/drawdb-server) and environment variables according to `.env.sample`. This is optional unless you need to share files.
+The frontend uses `/api` on the same origin by default. To enable team collaboration, route `/api` and `/socket.io` to the DrawDB server and `/` to this frontend. See [Modo equipo](docs/deploy/dokploy.md) for the Dokploy setup.
 
-With the Docker image, pass the server URL when starting the container. No rebuild is needed:
+The Docker image also defaults to `/api`; configure the reverse proxy routes when running it with a server:
 
 ```bash
-docker run -p 3000:80 -e VITE_BACKEND_URL=https://your-drawdb-server.example.com ghcr.io/drawdb-io/drawdb:latest
+docker run -p 3000:80 ghcr.io/drawdb-io/drawdb:latest
 ```
+
+For local development, Vite proxies `/api` and `/socket.io` to `http://localhost:5000`.
+
+## Modo equipo
+
+El modo equipo requiere el frontend y el [backend de DrawDB](https://github.com/drawdb-io/drawdb-server) bajo el mismo dominio. La guía de [despliegue en Dokploy](docs/deploy/dokploy.md) explica cómo conectar las rutas `/api` y `/socket.io`, configurar correo y validar la colaboración en tiempo real.
 
 ## Contributing
 
 Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to this project.
 
 ## Support
+
 - Join discussions: [Discord](https://discord.gg/BrjZgNrmR6)

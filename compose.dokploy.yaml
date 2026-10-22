@@ -1,0 +1,11 @@
+services:
+  drawdb-web:
+    build: .
+    expose:
+      - "80"
+    networks:
+      - dokploy-network
+
+networks:
+  dokploy-network:
+    external: true
