@@ -21,8 +21,12 @@ import ProjectCollabProvider, {
   useProjectCollab,
 } from "../collab/ProjectCollabProvider";
 import CollabBridge from "../collab/CollabBridge";
+import RemoteCursors from "../collab/RemoteCursors";
+import PresenceBar from "../collab/PresenceBar";
 
 const cloudSave = async () => {};
+const canvasLayerSlot = <RemoteCursors />;
+const headerActionsEndSlot = <PresenceBar />;
 
 function ProjectWorkspace() {
   const {
@@ -45,8 +49,8 @@ function ProjectWorkspace() {
       cloudLoad: waitForSnapshot,
       prepareCloudDiagram,
       cloudSave,
-      "canvas-layer": null,
-      "header-actions-end": null,
+      "canvas-layer": canvasLayerSlot,
+      "header-actions-end": headerActionsEndSlot,
     }),
     [
       projectName,
