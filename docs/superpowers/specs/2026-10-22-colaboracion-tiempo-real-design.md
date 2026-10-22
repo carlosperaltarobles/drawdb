@@ -48,6 +48,7 @@ El éxito es que el equipo trabaje sobre un diagrama real de unas 200 entidades:
 ## 5. Lo que ya existe (punto de partida)
 
 **Frontend (`drawdb`):**
+
 - `src/context/CollabContext.jsx` es un stub que expone `emitDelta`, `emitAwareness` e `isApplyingRemoteRef`. Todos los contextos de edición ya lo llaman: Diagram, Areas, Notes, Types, Enums y Views. Cada llamada emite un delta del tipo `{ target, action: create|update|delete, entityId, data }`. `Canvas.jsx` emite awareness para la línea de enlace.
 - `isApplyingRemoteRef` existe justo para no reemitir cambios que llegan del servidor.
 - `Workspace.jsx` carga desde IndexedDB (Dexie) y ya acepta `cloudLoad` y `forcedDiagramId`, que son puntos de extensión para cargar desde la nube.
@@ -124,7 +125,7 @@ Navegador ──HTTPS──► Traefik (Dokploy) ──► drawdb-web   (nginx, 
 
 ### 7.4 Persistencia
 
-- El documento en memoria se escribe en `projects.diagram` (JSONB) con *debounce* (unos 2 s tras el último cambio) y siempre cuando la sala queda vacía o el proceso se apaga.
+- El documento en memoria se escribe en `projects.diagram` (JSONB) con _debounce_ (unos 2 s tras el último cambio) y siempre cuando la sala queda vacía o el proceso se apaga.
 - **Mi decisión:** guardar un snapshot en `project_snapshots` como máximo cada 10 minutos de actividad, y conservar los últimos 200 por proyecto. Es una red de seguridad recuperable a mano, sin UI.
 - Una sola instancia del backend. Escalar a varias (adaptador Redis de Socket.IO) queda fuera de alcance, pero el código no debe impedirlo de forma gratuita.
 
@@ -132,17 +133,18 @@ Navegador ──HTTPS──► Traefik (Dokploy) ──► drawdb-web   (nginx, 
 
 **Tablas** (Postgres, base `drawdb`):
 
-| Tabla | Columnas |
-|---|---|
-| `users` | `id`, `email` (único, en minúsculas), `name`, `password_hash`, `is_admin`, `is_superadmin`, `email_verified_at`, `created_at` |
-| `sessions` | `id` (token aleatorio, guardado como hash), `user_id`, `expires_at`, `created_at` |
-| `email_tokens` | `id`, `user_id`, `type` (`verify`\|`reset`), `token_hash`, `expires_at`, `used_at` |
-| `projects` | `id`, `name`, `diagram` (JSONB), `version`, `created_by`, `created_at`, `updated_at` |
-| `project_members` | `project_id`, `user_id`, `role` (`editor`\|`viewer`), PK compuesta |
-| `project_invitations` | `id`, `project_id`, `email`, `role`, `token_hash`, `invited_by`, `expires_at`, `accepted_at` |
-| `project_snapshots` | `id`, `project_id`, `diagram`, `version`, `created_at` |
+| Tabla                 | Columnas                                                                                                                      |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `users`               | `id`, `email` (único, en minúsculas), `name`, `password_hash`, `is_admin`, `is_superadmin`, `email_verified_at`, `created_at` |
+| `sessions`            | `id` (token aleatorio, guardado como hash), `user_id`, `expires_at`, `created_at`                                             |
+| `email_tokens`        | `id`, `user_id`, `type` (`verify`\|`reset`), `token_hash`, `expires_at`, `used_at`                                            |
+| `projects`            | `id`, `name`, `diagram` (JSONB), `version`, `created_by`, `created_at`, `updated_at`                                          |
+| `project_members`     | `project_id`, `user_id`, `role` (`editor`\|`viewer`), PK compuesta                                                            |
+| `project_invitations` | `id`, `project_id`, `email`, `role`, `token_hash`, `invited_by`, `expires_at`, `accepted_at`                                  |
+| `project_snapshots`   | `id`, `project_id`, `diagram`, `version`, `created_at`                                                                        |
 
 **Registro:**
+
 - `ALLOWED_EMAIL_DOMAINS` es una lista separada por comas. Se compara el dominio exacto después de la `@`, en minúsculas: `evil-corre-dominio.com` no pasa por terminar parecido.
 - Si el dominio no está permitido, se responde "No es posible registrarse con este correo".
 - Si el dominio está permitido, la respuesta es siempre la misma ("Te enviamos un correo para verificar tu cuenta"), **exista o no el correo**. Si el correo ya existe y está verificado, no se crea nada (opcionalmente se envía un correo de aviso). Si existe sin verificar, se reenvía la verificación.
@@ -172,16 +174,16 @@ Navegador ──HTTPS──► Traefik (Dokploy) ──► drawdb-web   (nginx, 
 
 ### 7.6 Frontend: pantallas y rutas
 
-| Ruta | Pantalla |
-|---|---|
-| `/login` | Login |
-| `/register` | Registro |
-| `/verify?token=…` | Verificación de correo |
-| `/forgot`, `/reset?token=…` | Recuperar contraseña |
-| `/projects` | Lista de proyectos del usuario. Los administradores ven el botón "Nuevo proyecto". |
-| `/projects/:id` | El editor de drawDB en modo proyecto |
-| `/projects/:id/members` | Miembros, invitaciones y roles (puede ser un modal dentro del editor) |
-| `/admin/users` | Solo administradores |
+| Ruta                        | Pantalla                                                                           |
+| --------------------------- | ---------------------------------------------------------------------------------- |
+| `/login`                    | Login                                                                              |
+| `/register`                 | Registro                                                                           |
+| `/verify?token=…`           | Verificación de correo                                                             |
+| `/forgot`, `/reset?token=…` | Recuperar contraseña                                                               |
+| `/projects`                 | Lista de proyectos del usuario. Los administradores ven el botón "Nuevo proyecto". |
+| `/projects/:id`             | El editor de drawDB en modo proyecto                                               |
+| `/projects/:id/members`     | Miembros, invitaciones y roles (puede ser un modal dentro del editor)              |
+| `/admin/users`              | Solo administradores                                                               |
 
 - **Todo detrás de login.** `/` redirige a `/projects` o a `/login`.
 - **Rutas antiguas** (mi decisión): `/editor`, `/editor/diagrams/:id`, `/editor/templates/:id` y `/templates` (editor local con Dexie) siguen funcionando igual, pero solo con sesión iniciada. La landing pública desaparece de la navegación.
@@ -204,23 +206,27 @@ Navegador ──HTTPS──► Traefik (Dokploy) ──► drawdb-web   (nginx, 
 ### 7.8 Despliegue y local
 
 **Postgres compartido:**
+
 - Un compose propio, independiente de drawDB, con `postgres:16-alpine`, volumen persistente, healthcheck y red externa compartida.
 - Un script o README explica cómo crear una base y un usuario por proyecto (`CREATE ROLE drawdb …; CREATE DATABASE drawdb OWNER drawdb;`).
 - En Dokploy ya existe uno, y el despliegue usa ese con `DATABASE_URL`.
 - En local hay que crearlo: es el único Docker indispensable, porque no hay Postgres instalado.
 
 **Backend (`drawdb-server`):**
+
 - Un `Dockerfile` de producción (build TypeScript y `node dist/index.js`).
 - Un compose para Dokploy, sin `ports` publicados y con labels o dominio gestionados por Dokploy en `/api` y `/socket.io`.
 - Las migraciones SQL se ejecutan al arrancar.
 - `.env.sample` actualizado.
 
 **Frontend (`drawdb`):**
+
 - Se reutiliza el Dockerfile con nginx.
 - Un compose para Dokploy con el dominio en `/`.
 - Debe funcionar sin variables extra, porque las llamadas son relativas al mismo origen.
 
 **Local, sin Docker salvo Postgres:**
+
 - Backend con `npm run dev` y frontend con `npm run dev` (Vite con proxy).
 - Para el correo se usa el Mailpit existente o el SMTP real de Hostinger, según el `.env`.
 
@@ -228,13 +234,14 @@ Navegador ──HTTPS──► Traefik (Dokploy) ──► drawdb-web   (nginx, 
 `DATABASE_URL`, `APP_URL`, `ALLOWED_EMAIL_DOMAINS`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `SESSION_SECRET` (si aplica), `MAIL_*`, `PORT`, `NODE_ENV`.
 
 **Endpoints existentes** (mi decisión):
+
 - `/email` (reporte de bugs) y `/gists` pasan a exigir sesión, para que nadie use el buzón de Hostinger desde fuera.
 - `/email` usa el mismo transporte SMTP `MAIL_*`. `MAIL_SERVICE=gmail` se elimina.
 - `GITHUB_TOKEN` pasa a ser opcional: sin él, `/gists` responde que no está disponible.
 
 ## 8. Lo que queda a criterio del constructor
 
-- **Librerías:** acceso a Postgres y migraciones (`pg` con SQL plano, Kysely, Drizzle, etc.), validación de payloads, rate limiting y hash de contraseñas, siempre que se cumpla §7.5.
+- **Librerías:** acceso a Postgres y migraciones con **Prisma** (decisión del dueño, para escalabilidad), validación de payloads, rate limiting y hash de contraseñas, siempre que se cumpla §7.5.
 - **Mecánica del modo proyecto en el editor:** reutilizar `cloudLoad`/`forcedDiagramId` o crear un proveedor nuevo, siempre que el modo local no se rompa para quien siga usándolo.
 - **Formato exacto de los mensajes de Socket.IO,** y cómo aplicar deltas remotos en cada contexto, reutilizando `isApplyingRemoteRef`.
 - **Diseño visual** de las pantallas nuevas, usando Semi UI y el estilo existente del proyecto.

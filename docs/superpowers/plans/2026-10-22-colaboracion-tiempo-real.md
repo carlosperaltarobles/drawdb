@@ -5,18 +5,21 @@
 **Goal:** Convertir el fork de drawDB en una herramienta privada del equipo, con login, proyectos con miembros y edición en tiempo real guardada en Postgres. Se despliega en Dokploy.
 
 **Architecture:**
+
 - El backend Express (`drawdb-server`) incorpora Postgres (`pg` + migraciones SQL), autenticación por cookie de sesión, una API REST de proyectos y miembros, y Socket.IO.
 - Socket.IO mantiene en memoria el documento de cada proyecto abierto. Aplica operaciones granulares en orden y las guarda con debounce.
 - El frontend no depende de los ganchos `emitDelta` existentes. Un `CollabBridge` compara el estado del editor con la última copia enviada (`diffDoc`) y genera operaciones granulares. Así cubre todo lo que hoy cambia el estado: UI, deshacer/rehacer e importación. Las operaciones remotas se aplican sobre el estado confirmado, rebasando las pendientes.
 
 **Tech Stack:**
-- Backend: Node 20, Express 4, TypeScript (commonjs), `pg`, `socket.io`, `@node-rs/argon2`, `zod`, `express-rate-limit`, `cookie-parser`, `nodemailer`. Tests con `vitest` y `supertest`.
+
+- Backend: Node 20, Express 4, TypeScript (commonjs), **Prisma ORM 7.10.1** con `@prisma/adapter-pg` (decisión del dueño; ver Task 2b en el ledger), `socket.io`, `@node-rs/argon2`, `zod`, `express-rate-limit`, `cookie-parser`, `nodemailer`. Tests con `vitest` y `supertest`.
 - Frontend: React 18, Vite, Semi UI, `socket.io-client`, `vitest`.
 - Infraestructura: Postgres 16 (compose), Dokploy (Traefik).
 
 **Spec:** `docs/superpowers/specs/2026-10-22-colaboracion-tiempo-real-design.md` (repo `drawdb`)
 
 **Repos y rutas:**
+
 - FE = `/home/carlos/Proyectos/drawdb`, rama `feat/colaboracion-tiempo-real`
 - BE = `/home/carlos/Proyectos/drawdb-server`, crear la rama `feat/colaboracion-tiempo-real`
 - PG = `/home/carlos/Proyectos/shared-postgres` (directorio nuevo con su propio `git init`)
@@ -67,10 +70,13 @@
 ### Task 1: Postgres compartido (local y Dokploy)
 
 **Files (PG):**
+
 - Create: `compose.yaml`, `.env.example`, `create-db.sh`, `README.md`, `.gitignore` (`.env`)
 
 **Interfaces:**
+
 - Produces:
+
   - contenedor `shared-postgres` en `127.0.0.1:5432` y red Docker `shared-postgres`
   - `./create-db.sh <db> <user> <password>`: crea el rol y la base de forma idempotente
   - bases `drawdb` y `drawdb_test` con dueño `drawdb`
@@ -96,6 +102,7 @@
 ### Task 2: Base del backend (config, DB, migraciones, app factory, tests)
 
 **Files (BE):**
+
 - Modify:
   - `package.json`: deps `pg socket.io @node-rs/argon2 zod express-rate-limit cookie-parser lodash`
   - devDeps `vitest supertest @types/pg @types/supertest @types/cookie-parser @types/lodash socket.io-client`
@@ -108,6 +115,7 @@
   - `vitest.config.ts`, `tests/helpers/db.ts`, `tests/helpers/app.ts`, `tests/health.test.ts`
 
 **Interfaces:**
+
 - Produces:
   - `config`: `{ dev, appUrl, cookieSecure, allowedDomains: string[], admin: {email,password}, mail: {host,port,secure,username,password,from}, databaseUrl, github?: string, rateLimit: {enabled: boolean} }`
   - `getPool(): Pool`
@@ -118,6 +126,7 @@
   - `tests/helpers/db.ts`: `testPool()` (usa `DATABASE_URL_TEST` o, por defecto, `postgres://drawdb:drawdb_local@localhost:5432/drawdb_test`) y `resetDb()` (migra y hace `TRUNCATE` de todas las tablas excepto `schema_migrations`)
   - `tests/helpers/app.ts`: `makeApp()` → `{ app, pool, mailer: MemoryMailer }`
 - Esquema en `001_init.sql`: tablas exactas de la spec §7.5 (incluye `is_superadmin`).
+
   - Ids `uuid` con `gen_random_uuid()` y `timestamptz`
   - `projects.diagram jsonb not null`
   - `projects.version bigint not null default 0`
@@ -140,11 +149,14 @@
 ### Task 3: Correo SMTP y plantillas
 
 **Files (BE):**
+
 - Create: `src/mail/mailer.ts`, `src/mail/templates.ts`, `tests/mail.test.ts`
 - Delete: `src/utils/send-email.ts` (`email-controller` pasa a usar `Mailer`)
 
 **Interfaces:**
+
 - Produces:
+
   - `interface Mailer { send(m: {to: string; subject: string; html: string; text: string}): Promise<void> }`
   - `createSmtpMailer(cfg: typeof config.mail): Mailer`: nodemailer con `host/port/secure/auth`
   - `class MemoryMailer implements Mailer { sent: Msg[] }`
@@ -158,6 +170,7 @@
 ### Task 4: Autenticación (registro, verificación, login, sesiones, reset, superadmin)
 
 **Files (BE):**
+
 - Create:
   - `src/auth/domain.ts`, `src/auth/tokens.ts`, `src/auth/passwords.ts`
   - `src/auth/sessions.ts`, `src/auth/middleware.ts`, `src/auth/routes.ts`
@@ -165,7 +178,9 @@
 - Test: `tests/auth/domain.test.ts`, `tests/auth/register.test.ts`, `tests/auth/login.test.ts`, `tests/auth/reset.test.ts`, `tests/auth/bootstrap.test.ts`
 
 **Interfaces:**
+
 - Produces:
+
   - `isAllowedDomain(email: string, allowed: string[]): boolean`
   - `newToken(): { token: string; hash: string }`: 32 bytes en base64url, hash sha256 en hex
   - `hashToken(t)`
@@ -177,20 +192,20 @@
   - `acceptPendingInvitations(pool, userId, email)`: la usa `verify`; la crea Task 5, aquí puede quedar como stub que exporta Task 5
   - Rutas `/api/auth`:
 
-    | Método y ruta | Cuerpo | Respuesta |
-    |---|---|---|
-    | `POST /register` | `{email,name,password}` | 202 `{status:'verification_sent'}` \| 400 `{error:'registration_not_allowed'}` \| 400 `{error:'invalid_input'}` |
-    | `POST /verify` | `{token}` | 200 `{user}` y fija la cookie \| 400 `invalid_token` |
-    | `POST /resend` | `{email}` | 202 siempre |
-    | `POST /login` | `{email,password}` | 200 `{user}` y cookie \| 401 `invalid_credentials` |
-    | `POST /logout` | — | 204 |
-    | `GET /me` | — | 200 `{user}` \| 401 |
-    | `POST /forgot` | `{email}` | 202 siempre |
-    | `POST /reset` | `{token,password}` | 204 \| 400 `invalid_token` |
-    | `POST /password` | `{currentPassword,newPassword}` | 204 \| 401 `invalid_credentials` (requiere sesión) |
+    | Método y ruta    | Cuerpo                          | Respuesta                                                                                                       |
+    | ---------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+    | `POST /register` | `{email,name,password}`         | 202 `{status:'verification_sent'}` \| 400 `{error:'registration_not_allowed'}` \| 400 `{error:'invalid_input'}` |
+    | `POST /verify`   | `{token}`                       | 200 `{user}` y fija la cookie \| 400 `invalid_token`                                                            |
+    | `POST /resend`   | `{email}`                       | 202 siempre                                                                                                     |
+    | `POST /login`    | `{email,password}`              | 200 `{user}` y cookie \| 401 `invalid_credentials`                                                              |
+    | `POST /logout`   | —                               | 204                                                                                                             |
+    | `GET /me`        | —                               | 200 `{user}` \| 401                                                                                             |
+    | `POST /forgot`   | `{email}`                       | 202 siempre                                                                                                     |
+    | `POST /reset`    | `{token,password}`              | 204 \| 400 `invalid_token`                                                                                      |
+    | `POST /password` | `{currentPassword,newPassword}` | 204 \| 401 `invalid_credentials` (requiere sesión)                                                              |
 
 - [ ] **Step 1: Tests que fallan.** Cada viñeta es un test:
-  - `domain.test.ts`: `isAllowedDomain` con `['corre-dominio.com']` devuelve `true` para `a@corre-dominio.com` y para ` A@CORRE-DOMINIO.COM `, y `false` para `a@evil-corre-dominio.com`, `a@corre-dominio.com.evil.io`, `a@sub.corre-dominio.com` y `nada`. Con `[]` → `false`. Con `['a.com','b.com']` → `x@b.com` es `true`.
+  - `domain.test.ts`: `isAllowedDomain` con `['corre-dominio.com']` devuelve `true` para `a@corre-dominio.com` y para `A@CORRE-DOMINIO.COM`, y `false` para `a@evil-corre-dominio.com`, `a@corre-dominio.com.evil.io`, `a@sub.corre-dominio.com` y `nada`. Con `[]` → `false`. Con `['a.com','b.com']` → `x@b.com` es `true`.
   - `register.test.ts`:
     - Un dominio no permitido da 400 `registration_not_allowed`, no envía correo y el cuerpo **no** contiene el dominio permitido.
     - Un dominio permitido da 202, crea un usuario con `email_verified_at` nulo y envía 1 correo con un enlace `/verify?token=`.
@@ -223,12 +238,15 @@
 ### Task 5: Proyectos, miembros, invitaciones y administración de usuarios
 
 **Files (BE):**
+
 - Create: `src/projects/repo.ts`, `src/projects/routes.ts`, `src/admin/routes.ts`, `src/projects/empty-doc.ts`
 - Test: `tests/projects.test.ts`, `tests/members.test.ts`, `tests/admin.test.ts`
 
 **Interfaces:**
+
 - Consumes: `requireAuth`, `requireAdmin`, `isAllowedDomain`, `templates`, `Mailer`
 - Produces:
+
   - `EMPTY_DOC = { database:'generic', sqlHeader:'', tables:[], relationships:[], notes:[], areas:[], views:[], enums:[], types:[] }`
   - `getRole(pool, projectId, user: PublicUser): Promise<'admin'|'editor'|'viewer'|null>`: un administrador obtiene `'admin'`
   - `acceptPendingInvitations(pool,userId,email): Promise<void>`
@@ -276,6 +294,7 @@ El mismo algoritmo vive en el BE (TS) y en el FE (JS, Task 12), y los dos deben 
 **Files (BE):** Create `src/collab/ops.ts`, `src/collab/validate.ts`, `src/collab/__fixtures__/ops.fixtures.json`. Test: `tests/collab/ops.test.ts`
 
 **Interfaces:**
+
 - Produces:
   - `COLLS = ['tables','relationships','notes','areas','views','enums','types']`
   - `SUBS = { tables: ['fields','indices','uniqueConstraints'] }`
@@ -294,6 +313,7 @@ El mismo algoritmo vive en el BE (TS) y en el FE (JS, Task 12), y los dos deben 
   - `diffDoc(prev, next): Op[]`
   - `validateOps(x: unknown): Op[] | null`: zod, como mucho 5000 operaciones, `coll` y `sub` dentro de las listas, ids `string|number`
 - **Reglas** (determinan los fixtures):
+
   - `add` con un id que ya existe → sin cambios y `ok:true` (idempotente). Se inserta en `min(index, len)`.
   - `del` de un id que no existe → sin cambios y `ok:true`.
   - `patch`/`spatch` sobre un id que no existe → `ok:false`.
@@ -303,6 +323,7 @@ El mismo algoritmo vive en el BE (TS) y en el FE (JS, Task 12), y los dos deben 
   - Invariante: `applyOps(prev, diffDoc(prev,next)).doc` es igual (`isEqual`) a `next`.
 
 - [ ] **Step 1: Fixtures y tests que fallan.** Los fixtures son `[{name, base, ops, expected, ok}]`. Deben incluir como mínimo:
+
   - (a) dos `sadd` de campos distintos en la misma tabla → los dos presentes
   - (b) `spatch` del nombre de un campo y `spatch` del tipo de otro → los dos se aplican
   - (c) `patch` sobre una tabla borrada → `ok:false`
@@ -311,9 +332,11 @@ El mismo algoritmo vive en el BE (TS) y en el FE (JS, Task 12), y los dos deben 
   - (f) `unset`
 
   Tests:
+
   - correr todos los fixtures
   - propiedad: para 200 pares aleatorios `prev → next` (generador con semilla fija que añade, borra, edita y reordena tablas, campos, notas y enums), comprobar `isEqual(applyOps(prev, diffDoc(prev,next)).doc, next)`
   - `validateOps` rechaza `{t:'patch', coll:'users'}` y lotes de 5001
+
 - [ ] **Step 2:** FAIL. **Step 3:** Implementar. **Step 4:** PASS.
 - [ ] **Step 5:** Commit `feat: operaciones granulares del documento`
 
@@ -322,8 +345,10 @@ El mismo algoritmo vive en el BE (TS) y en el FE (JS, Task 12), y los dos deben 
 **Files (BE):** Create `src/collab/rooms.ts`, `src/collab/socket.ts`; modify `src/server.ts`, `src/index.ts`. Test: `tests/collab/rooms.test.ts`, `tests/collab/socket.test.ts`
 
 **Interfaces:**
+
 - Consumes: `applyOps`, `validateOps`, `getRole`, `getSessionUser`, `EMPTY_DOC`
 - Produces:
+
   - `class RoomManager(pool, opts: { saveDebounceMs=2000, snapshotIntervalMs=600000, snapshotKeep=200 })`, con los métodos:
     - `join(projectId): Promise<{doc, version}>`
     - `apply(projectId, ops): {applied, version, ok}`
@@ -388,10 +413,12 @@ El mismo algoritmo vive en el BE (TS) y en el FE (JS, Task 12), y los dos deben 
 ### Task 10: Base del frontend (tests, proxy, cliente HTTP)
 
 **Files (FE):**
+
 - Modify: `package.json` (devDeps `vitest`; deps `socket.io-client`; script `"test": "vitest run"`), `vite.config.js`, `src/config/index.js`
 - Create: `src/api/http.js`, `src/api/auth.js`, `src/api/projects.js`, `src/api/admin.js`, `src/api/http.test.js`
 
 **Interfaces:**
+
 - Produces:
   - `http`: axios con `baseURL: '/api'` y `withCredentials: true`
   - `errorCode(err): string|undefined`: devuelve `err.response?.data?.error`
@@ -410,6 +437,7 @@ El mismo algoritmo vive en el BE (TS) y en el FE (JS, Task 12), y los dos deben 
 Hoy esos ids son la posición en la lista y se renumeran al borrar. Con varios editores, eso hace chocar ids y borra o edita el elemento equivocado.
 
 **Files (FE):** Modify:
+
 - `src/context/NotesContext.jsx` (líneas ~30, 35, 47, 78-85)
 - `src/context/AreasContext.jsx` (~25, 31, 42, 73-80)
 - `src/components/EditorSidePanel/TablesTab/TableInfo.jsx` (107, 137)
@@ -419,6 +447,7 @@ Hoy esos ids son la posición en la lista y se renumeran al borrar. Con varios e
 - Test: `src/utils/ids.test.js`
 
 **Interfaces:**
+
 - Produces: `findById(list, id)` y `newId()` (= `nanoid()`) en `src/utils/ids.js`
 
 - [ ] **Step 1: Test que falla:** `findById([{id:'a'},{id:0}], 0)` devuelve el segundo elemento; `newId()` devuelve un string de 21 caracteres.
@@ -437,12 +466,15 @@ Hoy esos ids son la posición en la lista y se renumeran al borrar. Con varios e
 ### Task 12: `ops.js` y `CollabClient` (FE, puros)
 
 **Files (FE):**
+
 - Create: `src/collab/ops.js` (traducción de `BE/src/collab/ops.ts`, sin `validateOps`), `src/collab/__fixtures__/ops.fixtures.json` (copia), `src/collab/CollabClient.js`, `src/collab/colors.js`
 - Test: `src/collab/ops.test.js`, `src/collab/CollabClient.test.js`
 
 **Interfaces:**
+
 - Consumes: el contrato `Op` de Task 7
 - Produces:
+
   - `applyOp`, `applyOps`, `diffDoc` (mismas reglas que Task 7)
   - `colorFor(userId)` (misma paleta y hash que el BE)
   - `class CollabClient({ send: (batch:{seq,ops}) => void })`:
@@ -467,6 +499,7 @@ Hoy esos ids son la posición en la lista y se renumeran al borrar. Con varios e
 ### Task 13: Autenticación en la UI y rutas protegidas
 
 **Files (FE):**
+
 - Create:
   - `src/context/AuthContext.jsx`, `src/hooks/useAuth.js`
   - `src/components/Auth/RequireAuth.jsx` (exporta también `RequireAdmin`), `src/components/Auth/AuthLayout.jsx`
@@ -474,6 +507,7 @@ Hoy esos ids son la posición en la lista y se renumeran al borrar. Con varios e
 - Modify: `src/App.jsx`, `src/hooks/index.js`, `src/i18n/locales/es.js`, `src/i18n/locales/en.js`
 
 **Interfaces:**
+
 - Consumes: `api/auth`, `errorCode`
 - Produces:
   - `useAuth(): { user: PublicUser|null, loading, login(email,pw), logout(), setUser }`. Al montar llama a `me()`.
@@ -485,6 +519,7 @@ Hoy esos ids son la posición en la lista y se renumeran al borrar. Con varios e
   - con `RequireAdmin`: `/admin/users`
   - `/` redirige a `/projects`. `LandingPage` sale de las rutas, pero el archivo no se borra.
 - Mensajes:
+
   - Tras registrarse: "Te enviamos un correo para verificar tu cuenta. Revisa tu bandeja de entrada." y un botón "Reenviar".
   - Los códigos de error se muestran con los textos exactos de Global Constraints.
 
@@ -502,10 +537,12 @@ Hoy esos ids son la posición en la lista y se renumeran al borrar. Con varios e
 ### Task 14: Lista de proyectos, miembros y administración de usuarios
 
 **Files (FE):**
+
 - Create: `src/pages/Projects.jsx`, `src/components/Projects/MembersModal.jsx`, `src/pages/AdminUsers.jsx`
 - Modify: los archivos de i18n
 
 **Interfaces:**
+
 - Consumes: `api/projects`, `api/admin`, `useAuth`
 - Produces: `<MembersModal projectId visible onClose />`, que reutiliza Task 15
 
@@ -532,6 +569,7 @@ Hoy esos ids son la posición en la lista y se renumeran al borrar. Con varios e
 ### Task 15: Editor en modo proyecto (`ProjectCollabProvider` + `CollabBridge`)
 
 **Files (FE):**
+
 - Create: `src/collab/ProjectCollabProvider.jsx`, `src/collab/CollabBridge.jsx`, `src/collab/viewStorage.js`, `src/pages/ProjectEditor.jsx`
 - Test: `src/collab/viewStorage.test.js`
 - Modify:
@@ -540,6 +578,7 @@ Hoy esos ids son la posición en la lista y se renumeran al borrar. Con varios e
   - `src/components/EditorHeader/Modal/Modal.jsx`: en modo proyecto, la importación con "sobrescribir" pide confirmación con el texto "Esto reemplaza el diagrama para todo el equipo. ¿Continuar?"
 
 **Interfaces:**
+
 - Consumes: `CollabClient`, `colorFor`, el protocolo de Task 8, `MembersModal`, el `ExtensionsContext` existente (`cloudLoad`, `cloudSave`, `Slot`), `Workspace({forcedDiagramId})`, `layout.readOnly`
 - Produces:
   - `viewStorage.load(projectId): {pan,zoom}|null` y `viewStorage.save(projectId, {pan,zoom})`, con `try/catch` y clave `drawdb:view:<projectId>`
@@ -561,6 +600,7 @@ Hoy esos ids son la posición en la lista y se renumeran al borrar. Con varios e
   - las operaciones remotas o el resync asignan solo las porciones cuyo valor cambió de referencia
   - `pan`/`zoom` → `viewStorage.save` con debounce de 500 ms
 - **Estado de conexión:**
+
   - `offline` → `layout.readOnly = true` y un banner "Sin conexión — reconectando…"
   - al reconectar: `join` → `resetFromSnapshot` → aplicar
   - si el rol es `viewer` → `readOnly`
@@ -586,8 +626,9 @@ Hoy esos ids son la posición en la lista y se renumeran al borrar. Con varios e
 **Files (FE):** Create `src/collab/RemoteCursors.jsx`, `src/collab/PresenceBar.jsx`, `src/collab/throttle.js`. Test: `src/collab/throttle.test.js`
 
 **Interfaces:**
+
 - Consumes: `ProjectCollabContext`, `useCanvas()` (`pointer.spaces.diagram`, `toScreenSpace`), `useTransform()`
-- Produces: `throttle(fn, ms)`, con *trailing call* garantizada
+- Produces: `throttle(fn, ms)`, con _trailing call_ garantizada
 
 - [ ] **Step 1: Test que falla** (con timers falsos de vitest): 10 llamadas en 100 ms con `ms=50` → como mucho 3 ejecuciones, y la última llamada siempre se ejecuta con los últimos argumentos.
 - [ ] **Step 2:** FAIL. **Step 3: Implementar**
@@ -609,8 +650,10 @@ Hoy esos ids son la posición en la lista y se renumeran al borrar. Con varios e
 **Files (BE):** Create `scripts/gen-diagram.ts` y `scripts/load-test.ts`; agregar los scripts npm `gen:diagram` y `load-test`.
 
 **Interfaces:**
+
 - `gen-diagram.ts [n=200] > big.json`: produce un JSON de drawDB importable (tablas con 8 a 15 campos, unas 250 relaciones), con ids `nanoid`.
 - `load-test.ts --project <id> --clients 10 --seconds 60`:
+
   - inicia sesión con usuarios sembrados por el propio script (`loadtest+N@<primer dominio permitido>`, ya verificados y miembros editores)
   - cada cliente envía awareness a 20/s y un `spatch` o `patch` aleatorio cada 500 ms
   - informa p50 y p95 de la latencia de ack y el total de operaciones aplicadas
