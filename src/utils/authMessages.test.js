@@ -10,6 +10,11 @@ describe("messageForError", () => {
     ["invalid_credentials", "Correo o contraseña incorrectos"],
     ["invalid_token", "El enlace no es válido o ha caducado"],
     ["too_many_requests", "Demasiados intentos, espera unos minutos"],
+    [
+      "cannot_change_superadmin",
+      "No se puede cambiar el rol del superadministrador",
+    ],
+    ["last_admin", "Debe quedar al menos un administrador"],
   ])("maps %s to its Spanish text", (code, text) => {
     expect(messageForError(code, t)).toBe(text);
   });

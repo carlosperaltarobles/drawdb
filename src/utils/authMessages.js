@@ -4,6 +4,8 @@ const ERROR_KEYS = {
   invalid_token: "invalid_token",
   too_many_requests: "too_many_requests",
   invalid_input: "invalid_input",
+  cannot_change_superadmin: "cannot_change_superadmin",
+  last_admin: "last_admin",
 };
 
 export function messageForError(code, t) {
