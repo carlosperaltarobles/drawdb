@@ -424,6 +424,13 @@ const en = {
     reset_email_sent:
       "If the email exists, we sent you a link to reset your password.",
     verify_account: "Verify account",
+    verify_confirm_title: "Confirm your account",
+    verify_confirm_text:
+      "Enter the password you chose when you registered to activate your account.",
+    activate_account: "Activate account",
+    verify_invalid_token:
+      "The link is not valid, has expired or the password does not match.",
+    resend_verification: "Resend verification",
     verification_email_sent:
       "We sent you an email to verify your account. Check your inbox.",
     verification_email_resent: "Email sent again",

@@ -4,8 +4,8 @@ const data = (res) => res.data;
 
 export const register = (payload) =>
   http.post("/auth/register", payload).then(data);
-export const verify = (token) =>
-  http.post("/auth/verify", { token }).then(data);
+export const verify = (token, password) =>
+  http.post("/auth/verify", { token, password }).then(data);
 export const resend = (email) =>
   http.post("/auth/resend", { email }).then(data);
 export const login = (email, password) =>

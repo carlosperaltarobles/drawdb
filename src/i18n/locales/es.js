@@ -427,6 +427,13 @@ const es = {
     reset_email_sent:
       "Si el correo existe, te enviamos un enlace para restablecer tu contraseña.",
     verify_account: "Verificar cuenta",
+    verify_confirm_title: "Confirma tu cuenta",
+    verify_confirm_text:
+      "Escribe la contraseña que elegiste al registrarte para activar tu cuenta.",
+    activate_account: "Activar cuenta",
+    verify_invalid_token:
+      "El enlace no es válido, ha caducado o la contraseña no coincide.",
+    resend_verification: "Reenviar verificación",
     verification_email_sent:
       "Te enviamos un correo para verificar tu cuenta. Revisa tu bandeja de entrada.",
     verification_email_resent: "Correo reenviado",
