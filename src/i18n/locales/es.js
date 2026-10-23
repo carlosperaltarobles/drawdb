@@ -12,6 +12,15 @@ const es = {
     project_deleted: "Este proyecto ha sido eliminado",
     project_overwrite_confirm:
       "Esto reemplaza el diagrama para todo el equipo. ¿Continuar?",
+    history: "Historial",
+    history_preview_banner:
+      "Viendo la versión de {{time}} · solo lectura · los demás no ven esto",
+    history_back_to_current: "Volver a la actual",
+    history_restore: "Restaurar esta versión",
+    history_restore_confirm:
+      "Esto reemplaza el diagrama para todos. Se guardará una copia del estado actual.",
+    history_restored_by: "{{name}} restauró la versión de {{time}}",
+    history_restore_failed: "No se pudo restaurar la versión",
     report_bug: "Reportar error",
     import: "Importar",
     inherits: "Hereda",

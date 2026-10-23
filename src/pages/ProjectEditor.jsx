@@ -21,6 +21,7 @@ import ProjectCollabProvider, {
   useProjectCollab,
 } from "../collab/ProjectCollabProvider";
 import CollabBridge from "../collab/CollabBridge";
+import PreviewBanner from "../collab/PreviewBanner";
 import RemoteCursors from "../collab/RemoteCursors";
 import PresenceBar from "../collab/PresenceBar";
 
@@ -35,6 +36,7 @@ function ProjectWorkspace() {
     status,
     role,
     ready,
+    preview,
     waitForSnapshot,
     prepareCloudDiagram,
     canWrite,
@@ -44,7 +46,8 @@ function ProjectWorkspace() {
     () => ({
       projectMode: true,
       projectName,
-      readOnly: status !== "online" || !ready || role === "viewer",
+      readOnly:
+        status !== "online" || !ready || role === "viewer" || Boolean(preview),
       canWrite,
       cloudLoad: waitForSnapshot,
       prepareCloudDiagram,
@@ -57,6 +60,7 @@ function ProjectWorkspace() {
       status,
       role,
       ready,
+      preview,
       waitForSnapshot,
       prepareCloudDiagram,
       canWrite,
@@ -73,6 +77,7 @@ function ProjectWorkspace() {
             {t(status === "offline" ? "project_offline" : "project_connecting")}
           </div>
         )}
+        <PreviewBanner />
       </ProjectContexts>
     ),
     [projectId, status, t],

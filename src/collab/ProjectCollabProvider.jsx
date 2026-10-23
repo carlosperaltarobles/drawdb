@@ -11,12 +11,26 @@ import { Toast } from "@douyinfe/semi-ui";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { CollabContext } from "../context/CollabContext";
+import * as history from "../api/history";
 import { useAuth, useSettings } from "../hooks";
 import { fitTransform } from "../utils/fitView";
-import { ProjectSession } from "./ProjectSession";
+import { formatHistoryTime } from "./PreviewBanner";
+import { DOC_KEYS, ProjectSession } from "./ProjectSession";
 import * as viewStorage from "./viewStorage";
 
 const DEFAULT_VIEW = { pan: { x: 0, y: 0 }, zoom: 1 };
+
+export function normalizePreviewDoc(diagram = {}, currentDoc = {}) {
+  const doc = {};
+  for (const key of DOC_KEYS) {
+    if (key === "database" || key === "sqlHeader") {
+      doc[key] = diagram?.[key] ?? currentDoc?.[key];
+    } else {
+      doc[key] = Array.isArray(diagram?.[key]) ? diagram[key] : [];
+    }
+  }
+  return doc;
+}
 
 // First visit to a project: show the whole diagram instead of the origin,
 // which may be empty after an auto-arrange.
@@ -48,6 +62,7 @@ export default function ProjectCollabProvider({ projectId, children }) {
     peers: [],
     awareness: new Map(),
     ready: false,
+    preview: null,
   });
   const session = useMemo(
     () =>
@@ -64,6 +79,16 @@ export default function ProjectCollabProvider({ projectId, children }) {
             ),
           );
           callbacks.current.navigate("/projects", { replace: true });
+        },
+        onNotice: (notice) => {
+          if (notice?.type === "restored") {
+            Toast.info(
+              callbacks.current.t("history_restored_by", {
+                name: notice.by?.name ?? "",
+                time: formatHistoryTime(notice.snapshotCreatedAt),
+              }),
+            );
+          }
         },
       }),
     [projectId],
@@ -94,6 +119,12 @@ export default function ProjectCollabProvider({ projectId, children }) {
       observe: session.observe,
       sendAwareness: session.sendAwareness,
       canWrite: session.canWrite,
+      previewSnapshot: async (snapshotId) => {
+        const { diagram, ...meta } = await history.get(projectId, snapshotId);
+        const doc = normalizePreviewDoc(diagram, session.editorDoc);
+        session.startPreview(doc, meta);
+      },
+      endPreview: session.endPreview,
     };
   }, [session, projectId, user.id, settings.showComments]);
   const collab = useMemo(

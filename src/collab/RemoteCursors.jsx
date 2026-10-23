@@ -72,6 +72,7 @@ export const RemoteCursors = memo(function RemoteCursors() {
   const collab = useProjectCollab();
   const awareness = collab?.awareness;
   const sendAwareness = collab?.sendAwareness;
+  const preview = collab?.preview;
   const canvasCtx = useCanvas();
   useTransform();
 
@@ -93,12 +94,14 @@ export const RemoteCursors = memo(function RemoteCursors() {
   const diagramY = diagramCursor?.y;
 
   useEffect(() => {
+    if (preview) return;
     if (pointerOutsideRef.current) return;
     if (!Number.isFinite(diagramX) || !Number.isFinite(diagramY)) return;
     throttledSendCursor({ x: diagramX, y: diagramY });
-  }, [diagramX, diagramY, throttledSendCursor]);
+  }, [diagramX, diagramY, throttledSendCursor, preview]);
 
   useEffect(() => {
+    if (preview) return;
     const target = layerRef.current?.parentElement;
     if (!target) return;
     const onActive = () => {
@@ -119,7 +122,9 @@ export const RemoteCursors = memo(function RemoteCursors() {
       target.removeEventListener("pointermove", onActive);
       target.removeEventListener("pointerleave", onLeave);
     };
-  }, [sendAwareness, throttledSendCursor]);
+  }, [sendAwareness, throttledSendCursor, preview]);
+
+  if (preview) return null;
 
   const entries = !awareness
     ? []

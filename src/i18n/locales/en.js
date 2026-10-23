@@ -12,6 +12,15 @@ const en = {
     project_deleted: "This project has been deleted",
     project_overwrite_confirm:
       "This replaces the diagram for the whole team. Continue?",
+    history: "History",
+    history_preview_banner:
+      "Viewing the version from {{time}} · read-only · others don't see this",
+    history_back_to_current: "Back to current",
+    history_restore: "Restore this version",
+    history_restore_confirm:
+      "This replaces the diagram for everyone. A copy of the current state will be saved.",
+    history_restored_by: "{{name}} restored the version from {{time}}",
+    history_restore_failed: "Could not restore the version",
     report_bug: "Report a bug",
     import: "Import",
     inherits: "Inherits",
