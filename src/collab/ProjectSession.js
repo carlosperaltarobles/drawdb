@@ -24,6 +24,7 @@ export class ProjectSession {
       peers: [],
       awareness: new Map(),
       preview: null,
+      lastRestoredAt: 0,
     };
     this.preview = null;
     this.pendingReset = false;
@@ -41,6 +42,7 @@ export class ProjectSession {
       resync: () => this.join(),
       restored: ({ by, snapshotCreatedAt }) => {
         this.endPreview();
+        this.update({ lastRestoredAt: Date.now() });
         this.onNotice?.({ type: "restored", by, snapshotCreatedAt });
         this.join();
       },

@@ -63,6 +63,7 @@ export default function ProjectCollabProvider({ projectId, children }) {
     awareness: new Map(),
     ready: false,
     preview: null,
+    lastRestoredAt: 0,
   });
   const session = useMemo(
     () =>

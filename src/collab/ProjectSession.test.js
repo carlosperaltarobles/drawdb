@@ -298,6 +298,7 @@ describe("ProjectSession", () => {
       snapshotCreatedAt: "2026-10-23T12:40:00.000Z",
     });
     expect(states.at(-1).preview).toBeNull();
+    expect(states.at(-1).lastRestoredAt).toBeGreaterThan(0);
     expect(sent.filter(([e]) => e === "join")).toHaveLength(joinsBefore + 1);
     expect(notices).toEqual([
       {
