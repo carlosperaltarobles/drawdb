@@ -13,6 +13,8 @@ const defaultLayout = {
   dbmlEditor: false,
   readOnly: false,
   handTool: false,
+  // While exporting: the diagram area to draw in full detail (see ControlPanel).
+  exportBounds: null,
 };
 
 export default function LayoutContextProvider({ children }) {

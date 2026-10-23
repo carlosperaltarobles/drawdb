@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fitTransform } from "./fitView";
+import { diagramBounds, fitTransform } from "./fitView";
 
 const table = (x, y) => ({ id: `${x},${y}`, x, y, fields: [] });
 
@@ -49,5 +49,25 @@ describe("fitTransform", () => {
       { width: 1000, height: 800 },
     );
     expect(result.zoom).toBeGreaterThanOrEqual(0.05);
+  });
+});
+
+describe("diagramBounds", () => {
+  it("spans every element plus the padding", () => {
+    const bounds = diagramBounds(
+      {
+        tables: [table(100, 200)],
+        areas: [{ x: -50, y: 0, width: 100, height: 100 }],
+      },
+      true,
+      20,
+    );
+    expect(bounds.left).toBe(-70);
+    expect(bounds.top).toBe(-20);
+    expect(bounds.width).toBeGreaterThan(100 + 50 + 40);
+  });
+
+  it("returns null for an empty diagram", () => {
+    expect(diagramBounds({})).toBe(null);
   });
 });

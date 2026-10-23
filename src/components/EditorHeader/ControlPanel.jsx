@@ -27,7 +27,6 @@ import {
   Typography,
   Modal as SemiModal,
 } from "@douyinfe/semi-ui";
-import { toPng, toJpeg, toSvg } from "html-to-image";
 import {
   jsonToMySQL,
   jsonToPostgreSQL,
@@ -45,7 +44,7 @@ import {
   SIDESHEET,
   DB,
   IMPORT_FROM,
-  pngExportPixelRatio,
+  darkBgTheme,
   keyboardPanStep,
 } from "../../data/constants";
 import jsPDF from "jspdf";
@@ -104,8 +103,13 @@ import {
   applyHistorySnapshot,
 } from "../../utils/history";
 import { findById, insertAt, newId, removeById } from "../../utils/ids";
-import { fitTransform } from "../../utils/fitView";
-import { SIMPLIFIED_TABLE_ZOOM } from "../../utils/culling";
+import { diagramBounds, fitTransform } from "../../utils/fitView";
+import { exportPixelRatio } from "../../utils/exportScale";
+import {
+  buildDiagramSvg,
+  rasterizeSvg,
+  svgDataUrl,
+} from "../../utils/exportDiagram";
 import { autoArrange } from "../../utils/autoArrange";
 import { findAutoFKRelationships } from "../../utils/autoRelationships";
 import { deleteFromCache, STORAGE_KEY } from "../../utils/cache";
@@ -118,6 +122,9 @@ const EDITOR_HOTKEY = {
   preventDefault: true,
   ignoreEventWhen: (e) => Boolean(e.target?.closest?.(".monaco-editor")),
 };
+
+// Space around the diagram in exported images, in diagram units.
+const EXPORT_PADDING = 40;
 
 export default function ControlPanel({
   title,
@@ -139,12 +146,93 @@ export default function ControlPanel({
     extension: "",
   });
 
-  const openExportModal = (modalType) => {
+  // Building an export (images above all) blocks the page, so let the
+  // browser paint the modal's spinner or a loading toast first.
+  const runAfterPaint = (task) =>
+    new Promise((resolve, reject) =>
+      requestAnimationFrame(() =>
+        setTimeout(() => Promise.resolve().then(task).then(resolve, reject)),
+      ),
+    );
+  const exportFailed = (error) => {
+    console.error(error);
+    Toast.error(t("oops_smth_went_wrong"));
+  };
+  const openExportModal = (modalType, produce) => {
     setExportData((prev) => ({
       ...prev,
+      data: "",
       filename: `${title}_${new Date().toISOString()}`,
     }));
     setModal(modalType);
+    if (!produce) return;
+    runAfterPaint(produce).catch((error) => {
+      exportFailed(error);
+      setModal(MODAL.NONE);
+    });
+  };
+  /**
+   * Exports the whole diagram, not just what is on screen: the canvas briefly
+   * draws every element in full detail framed to the diagram bounds, and that
+   * SVG is serialized at its real size so the file can be zoomed into.
+   * `render({ svg, width, height, background })` turns it into the file data.
+   */
+  const captureDiagram = async (render) => {
+    const bounds = diagramBounds(
+      { tables, views, areas, notes, relationships },
+      settings.showComments,
+      EXPORT_PADDING,
+    );
+    const background = settings.mode === "dark" ? darkBgTheme : "white";
+    let snapshot;
+    if (bounds) setLayout((prev) => ({ ...prev, exportBounds: bounds }));
+    try {
+      // Let React draw the full diagram before serializing it.
+      await new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      );
+      const svgElement = document.getElementById("diagram");
+      const width = bounds ? Math.ceil(bounds.width) : svgElement.clientWidth;
+      const height = bounds
+        ? Math.ceil(bounds.height)
+        : svgElement.clientHeight;
+      snapshot = {
+        svg: buildDiagramSvg(svgElement, { width, height, background }),
+        width,
+        height,
+        background,
+      };
+    } finally {
+      if (bounds) setLayout((prev) => ({ ...prev, exportBounds: null }));
+    }
+    return { ...snapshot, data: await render(snapshot) };
+  };
+  const toRaster =
+    (type, quality) =>
+    ({ svg, width, height, background }) =>
+      rasterizeSvg(svg, {
+        width,
+        height,
+        background,
+        type,
+        quality,
+        pixelRatio: exportPixelRatio(width, height),
+      });
+  const exportImage = (render, extension) =>
+    openExportModal(MODAL.IMG, async () => {
+      const { data } = await captureDiagram(render);
+      setExportData((prev) => ({ ...prev, data, extension }));
+    });
+  // For exports that skip the modal (PDF, clipboard).
+  const withLoadingToast = (task) => {
+    const toastId = Toast.info({
+      content: t("generating_file"),
+      icon: <Spin size="small" />,
+      duration: 0,
+    });
+    runAfterPaint(task)
+      .catch(exportFailed)
+      .finally(() => Toast.close(toastId));
   };
   const [importFrom, setImportFrom] = useState(IMPORT_FROM.JSON);
   const { saveState, setSaveState } = useSaveState();
@@ -665,31 +753,13 @@ export default function ControlPanel({
       showFieldSummary: !prev.showFieldSummary,
     }));
   };
-  // Images capture the canvas as drawn, so warn when tables are simplified.
-  // (The image export modal shows the same warning itself.)
-  const warnIfSimplifiedExport = () => {
-    if (transform.zoom >= SIMPLIFIED_TABLE_ZOOM) return;
-    Toast.info({
-      content: t("simplified_export_hint", {
-        zoom: Math.round(SIMPLIFIED_TABLE_ZOOM * 100),
-      }),
-      duration: 6,
-    });
-  };
   const copyAsImage = () => {
-    warnIfSimplifiedExport();
-    toPng(document.getElementById("canvas"), {
-      pixelRatio: pngExportPixelRatio,
-    }).then(function (dataUrl) {
-      const blob = dataURItoBlob(dataUrl);
-      navigator.clipboard
-        .write([new ClipboardItem({ "image/png": blob })])
-        .then(() => {
-          Toast.success(t("copied_to_clipboard"));
-        })
-        .catch(() => {
-          Toast.error(t("oops_smth_went_wrong"));
-        });
+    withLoadingToast(async () => {
+      const { data: dataUrl } = await captureDiagram(toRaster("image/png"));
+      await navigator.clipboard.write([
+        new ClipboardItem({ "image/png": dataURItoBlob(dataUrl) }),
+      ]);
+      Toast.success(t("copied_to_clipboard"));
     });
   };
   const resetView = () =>
@@ -1364,131 +1434,138 @@ export default function ControlPanel({
             {
               name: "MySQL",
               function: () => {
-                openExportModal(MODAL.CODE);
-                const src = jsonToMySQL({
-                  tables: tables,
-                  references: relationships,
-                  types: types,
-                  database: database,
-                  views: views,
+                openExportModal(MODAL.CODE, () => {
+                  const src = jsonToMySQL({
+                    tables: tables,
+                    references: relationships,
+                    types: types,
+                    database: database,
+                    views: views,
+                  });
+                  setExportData((prev) => ({
+                    ...prev,
+                    data: src,
+                    extension: "sql",
+                  }));
                 });
-                setExportData((prev) => ({
-                  ...prev,
-                  data: src,
-                  extension: "sql",
-                }));
               },
             },
             {
               name: "PostgreSQL",
               function: () => {
-                openExportModal(MODAL.CODE);
-                const src = jsonToPostgreSQL({
-                  tables: tables,
-                  references: relationships,
-                  types: types,
-                  database: database,
-                  views: views,
+                openExportModal(MODAL.CODE, () => {
+                  const src = jsonToPostgreSQL({
+                    tables: tables,
+                    references: relationships,
+                    types: types,
+                    database: database,
+                    views: views,
+                  });
+                  setExportData((prev) => ({
+                    ...prev,
+                    data: src,
+                    extension: "sql",
+                  }));
                 });
-                setExportData((prev) => ({
-                  ...prev,
-                  data: src,
-                  extension: "sql",
-                }));
               },
             },
             {
               name: "SQLite",
               function: () => {
-                openExportModal(MODAL.CODE);
-                const src = jsonToSQLite({
-                  tables: tables,
-                  references: relationships,
-                  types: types,
-                  database: database,
-                  views: views,
+                openExportModal(MODAL.CODE, () => {
+                  const src = jsonToSQLite({
+                    tables: tables,
+                    references: relationships,
+                    types: types,
+                    database: database,
+                    views: views,
+                  });
+                  setExportData((prev) => ({
+                    ...prev,
+                    data: src,
+                    extension: "sql",
+                  }));
                 });
-                setExportData((prev) => ({
-                  ...prev,
-                  data: src,
-                  extension: "sql",
-                }));
               },
             },
             {
               name: "MariaDB",
               function: () => {
-                openExportModal(MODAL.CODE);
-                const src = jsonToMariaDB({
-                  tables: tables,
-                  references: relationships,
-                  types: types,
-                  database: database,
-                  views: views,
+                openExportModal(MODAL.CODE, () => {
+                  const src = jsonToMariaDB({
+                    tables: tables,
+                    references: relationships,
+                    types: types,
+                    database: database,
+                    views: views,
+                  });
+                  setExportData((prev) => ({
+                    ...prev,
+                    data: src,
+                    extension: "sql",
+                  }));
                 });
-                setExportData((prev) => ({
-                  ...prev,
-                  data: src,
-                  extension: "sql",
-                }));
               },
             },
             {
               name: "MSSQL",
               function: () => {
-                openExportModal(MODAL.CODE);
-                const src = jsonToSQLServer({
-                  tables: tables,
-                  references: relationships,
-                  types: types,
-                  database: database,
-                  views: views,
+                openExportModal(MODAL.CODE, () => {
+                  const src = jsonToSQLServer({
+                    tables: tables,
+                    references: relationships,
+                    types: types,
+                    database: database,
+                    views: views,
+                  });
+                  setExportData((prev) => ({
+                    ...prev,
+                    data: src,
+                    extension: "sql",
+                  }));
                 });
-                setExportData((prev) => ({
-                  ...prev,
-                  data: src,
-                  extension: "sql",
-                }));
               },
             },
             {
               label: "Beta",
               name: "Oracle",
               function: () => {
-                openExportModal(MODAL.CODE);
-                const src = jsonToOracleSQL({
-                  tables: tables,
-                  references: relationships,
-                  types: types,
-                  database: database,
-                  views: views,
+                openExportModal(MODAL.CODE, () => {
+                  const src = jsonToOracleSQL({
+                    tables: tables,
+                    references: relationships,
+                    types: types,
+                    database: database,
+                    views: views,
+                  });
+                  setExportData((prev) => ({
+                    ...prev,
+                    data: src,
+                    extension: "sql",
+                  }));
                 });
-                setExportData((prev) => ({
-                  ...prev,
-                  data: src,
-                  extension: "sql",
-                }));
               },
             },
           ],
         }),
         function: () => {
           if (database === DB.GENERIC) return;
-          openExportModal(MODAL.CODE);
-          const src = exportSQL({
-            tables: tables,
-            references: relationships,
-            types: types,
-            database: database,
-            enums: enums,
-            views: views,
-            sqlHeader: sqlHeader,
+          openExportModal(MODAL.CODE, () => {
+            const src = exportSQL({
+              tables: tables,
+              references: relationships,
+              types: types,
+              database: database,
+              enums: enums,
+              views: views,
+              sqlHeader: sqlHeader,
+            });
+            setExportData((prev) => ({
+              ...prev,
+              data: src,
+              extension: "sql",
+            }));
           });
-          setExportData((prev) => ({
-            ...prev,
-            data: src,
-            extension: "sql",
-          }));
         },
       },
       export_as: {
@@ -1496,112 +1573,88 @@ export default function ControlPanel({
           {
             name: "PNG",
             function: () => {
-              toPng(document.getElementById("canvas"), {
-                pixelRatio: pngExportPixelRatio,
-              }).then(function (dataUrl) {
-                setExportData((prev) => ({
-                  ...prev,
-                  data: dataUrl,
-                  extension: "png",
-                }));
-              });
-              openExportModal(MODAL.IMG);
+              exportImage(toRaster("image/png"), "png");
             },
           },
           {
             name: "JPEG",
             function: () => {
-              toJpeg(document.getElementById("canvas"), { quality: 0.95 }).then(
-                function (dataUrl) {
-                  setExportData((prev) => ({
-                    ...prev,
-                    data: dataUrl,
-                    extension: "jpeg",
-                  }));
-                },
-              );
-              openExportModal(MODAL.IMG);
+              exportImage(toRaster("image/jpeg", 0.95), "jpeg");
             },
           },
           {
             name: "SVG",
             function: () => {
-              const filter = (node) => node.tagName !== "i";
-              toSvg(document.getElementById("canvas"), { filter: filter }).then(
-                function (dataUrl) {
-                  setExportData((prev) => ({
-                    ...prev,
-                    data: dataUrl,
-                    extension: "svg",
-                  }));
-                },
-              );
-              openExportModal(MODAL.IMG);
+              exportImage(({ svg }) => svgDataUrl(svg), "svg");
             },
           },
           {
             name: "JSON",
             function: () => {
-              openExportModal(MODAL.CODE);
-              const result = JSON.stringify(
-                {
-                  tables: tables,
-                  relationships: relationships,
-                  notes: notes,
-                  subjectAreas: areas,
-                  views: views,
-                  database: database,
-                  ...(databases[database].hasTypes && { types: types }),
-                  ...(databases[database].hasEnums && { enums: enums }),
-                  ...(sqlHeader && { sqlHeader: sqlHeader }),
-                  title: title,
-                },
-                null,
-                2,
-              );
-              setExportData((prev) => ({
-                ...prev,
-                data: result,
-                extension: "json",
-              }));
+              openExportModal(MODAL.CODE, () => {
+                const result = JSON.stringify(
+                  {
+                    tables: tables,
+                    relationships: relationships,
+                    notes: notes,
+                    subjectAreas: areas,
+                    views: views,
+                    database: database,
+                    ...(databases[database].hasTypes && { types: types }),
+                    ...(databases[database].hasEnums && { enums: enums }),
+                    ...(sqlHeader && { sqlHeader: sqlHeader }),
+                    title: title,
+                  },
+                  null,
+                  2,
+                );
+                setExportData((prev) => ({
+                  ...prev,
+                  data: result,
+                  extension: "json",
+                }));
+              });
             },
           },
           {
             name: "DBML",
             function: () => {
-              openExportModal(MODAL.CODE);
-              const result = toDBML({
-                tables,
-                relationships,
-                enums,
-                database,
+              openExportModal(MODAL.CODE, () => {
+                const result = toDBML({
+                  tables,
+                  relationships,
+                  enums,
+                  database,
+                });
+                setExportData((prev) => ({
+                  ...prev,
+                  data: result,
+                  extension: "dbml",
+                }));
               });
-              setExportData((prev) => ({
-                ...prev,
-                data: result,
-                extension: "dbml",
-              }));
             },
           },
           {
             name: "PDF",
             function: () => {
-              warnIfSimplifiedExport();
-              const canvas = document.getElementById("canvas");
               const filename = `${title}_${new Date().toISOString()}`;
-              toJpeg(canvas).then(function (dataUrl) {
-                const doc = new jsPDF("l", "px", [
-                  canvas.offsetWidth,
-                  canvas.offsetHeight,
-                ]);
-                doc.addImage(
-                  dataUrl,
-                  "jpeg",
-                  0,
-                  0,
-                  canvas.offsetWidth,
-                  canvas.offsetHeight,
+              withLoadingToast(async () => {
+                const { data, width, height } = await captureDiagram(
+                  toRaster("image/jpeg", 0.92),
                 );
+                // PDF pages max out at 14400pt per side; shrink the page (not
+                // the image resolution) for very large diagrams.
+                const scale =
+                  0.75 *
+                  Math.min(1, 14400 / (width * 0.75), 14400 / (height * 0.75));
+                const pageWidth = width * scale;
+                const pageHeight = height * scale;
+                const doc = new jsPDF(
+                  pageWidth > pageHeight ? "l" : "p",
+                  "pt",
+                  [pageWidth, pageHeight],
+                );
+                doc.addImage(data, "JPEG", 0, 0, pageWidth, pageHeight);
                 doc.save(`${filename}.pdf`);
               });
             },
@@ -1609,42 +1662,44 @@ export default function ControlPanel({
           {
             name: "Mermaid",
             function: () => {
-              openExportModal(MODAL.CODE);
-              const result = jsonToMermaid({
-                tables: tables,
-                relationships: relationships,
-                notes: notes,
-                subjectAreas: areas,
-                database: database,
-                title: title,
+              openExportModal(MODAL.CODE, () => {
+                const result = jsonToMermaid({
+                  tables: tables,
+                  relationships: relationships,
+                  notes: notes,
+                  subjectAreas: areas,
+                  database: database,
+                  title: title,
+                });
+                setExportData((prev) => ({
+                  ...prev,
+                  data: result,
+                  extension: "md",
+                }));
               });
-              setExportData((prev) => ({
-                ...prev,
-                data: result,
-                extension: "md",
-              }));
             },
           },
           {
             name: "Markdown",
             function: () => {
-              openExportModal(MODAL.CODE);
-              const result = jsonToDocumentation({
-                tables: tables,
-                relationships: relationships,
-                notes: notes,
-                subjectAreas: areas,
-                views: views,
-                database: database,
-                title: title,
-                ...(databases[database].hasTypes && { types: types }),
-                ...(databases[database].hasEnums && { enums: enums }),
+              openExportModal(MODAL.CODE, () => {
+                const result = jsonToDocumentation({
+                  tables: tables,
+                  relationships: relationships,
+                  notes: notes,
+                  subjectAreas: areas,
+                  views: views,
+                  database: database,
+                  title: title,
+                  ...(databases[database].hasTypes && { types: types }),
+                  ...(databases[database].hasEnums && { enums: enums }),
+                });
+                setExportData((prev) => ({
+                  ...prev,
+                  data: result,
+                  extension: "md",
+                }));
               });
-              setExportData((prev) => ({
-                ...prev,
-                data: result,
-                extension: "md",
-              }));
             },
           },
         ],

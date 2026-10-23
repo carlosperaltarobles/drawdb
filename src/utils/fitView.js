@@ -7,16 +7,14 @@ const MAX_ZOOM = 5;
 const PADDING = 10;
 
 /**
- * The pan/zoom that shows every table, view, area and note inside a canvas of
- * the given size, or null when there is nothing to fit.
+ * The box spanning every table, view, area and note, grown by `padding` on
+ * each side, or null when the diagram is empty.
  */
-export function fitTransform(
+export function diagramBounds(
   { tables = [], views = [], areas = [], notes = [], relationships = [] },
-  canvas,
   showComments = true,
+  padding = 0,
 ) {
-  if (!(canvas?.width > 0) || !(canvas?.height > 0)) return null;
-
   const boxes = [
     ...tables.map((t) => ({
       x: t.x,
@@ -45,13 +43,34 @@ export function fitTransform(
   const maxX = Math.max(...boxes.map((b) => b.x + (b.w || 0)));
   const maxY = Math.max(...boxes.map((b) => b.y + (b.h || 0)));
 
-  const scaleX = canvas.width / (maxX - minX + PADDING);
-  const scaleY = canvas.height / (maxY - minY + PADDING);
+  return {
+    left: minX - padding,
+    top: minY - padding,
+    width: maxX - minX + padding * 2,
+    height: maxY - minY + padding * 2,
+  };
+}
+
+/**
+ * The pan/zoom that shows every table, view, area and note inside a canvas of
+ * the given size, or null when there is nothing to fit.
+ */
+export function fitTransform(diagram, canvas, showComments = true) {
+  if (!(canvas?.width > 0) || !(canvas?.height > 0)) return null;
+
+  const bounds = diagramBounds(diagram, showComments);
+  if (!bounds) return null;
+
+  const scaleX = canvas.width / (bounds.width + PADDING);
+  const scaleY = canvas.height / (bounds.height + PADDING);
   // Round down to a multiple of 0.05 so the zoom label stays readable.
   const scale = Math.floor(Math.min(scaleX, scaleY) * 20) / 20;
 
   return {
     zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, scale)),
-    pan: { x: (minX + maxX) / 2, y: (minY + maxY) / 2 },
+    pan: {
+      x: bounds.left + bounds.width / 2,
+      y: bounds.top + bounds.height / 2,
+    },
   };
 }

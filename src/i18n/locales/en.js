@@ -93,14 +93,13 @@ const en = {
     feedback: "Feedback",
     no_changes: "No changes",
     loading: "Loading...",
+    generating_file: "Generating file...",
     last_saved: "Last saved",
     saving: "Saving...",
     failed_to_save: "Failed to save",
     hand_tool: "Hand tool: drag to move around",
     simplified_view_hint:
       "Simplified view: zoom in above {{zoom}}% to see fields and create relationships",
-    simplified_export_hint:
-      "Zoom is below {{zoom}}%, so tables are exported in simplified view. Zoom in to export them with all their fields.",
     fit_window_reset: "Fit window / Reset",
     zoom: "Zoom",
     add_table: "Add table",

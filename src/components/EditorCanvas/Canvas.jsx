@@ -65,7 +65,7 @@ export default function Canvas() {
   const canvasRef = useRef(null);
   const canvasContextValue = useCanvas();
   const {
-    canvas: { viewBox },
+    canvas: { viewBox: screenViewBox },
     pointer,
   } = canvasContextValue;
 
@@ -76,6 +76,21 @@ export default function Canvas() {
   const { views, updateView } = useViews();
   const { notes, updateNote } = useNotes();
   const { layout } = useLayout();
+  // Exports draw the whole diagram; otherwise show what the transform frames.
+  const exportBounds = layout.exportBounds;
+  const exporting = exportBounds !== null;
+  const viewBox = useMemo(
+    () =>
+      exportBounds
+        ? new DOMRect(
+            exportBounds.left,
+            exportBounds.top,
+            exportBounds.width,
+            exportBounds.height,
+          )
+        : screenViewBox,
+    [exportBounds, screenViewBox],
+  );
   const { projectMode } = useExtensions();
   const { settings } = useSettings();
   const { setUndoStack, setRedoStack } = useUndoRedo();
@@ -203,7 +218,7 @@ export default function Canvas() {
       tables,
       relationships,
       boxes: tableBoxes,
-      bounds: cullBounds(viewBox),
+      bounds: exporting ? null : cullBounds(viewBox),
       keepTableIds,
       keepRelationshipId:
         selectedElement.element === ObjectType.RELATIONSHIP
@@ -215,6 +230,7 @@ export default function Canvas() {
     relationships,
     tableBoxes,
     viewBox,
+    exporting,
     selectedTableIds,
     dragging.type,
     dragging.id,
@@ -223,7 +239,7 @@ export default function Canvas() {
     selectedElement.element,
     selectedElement.id,
   ]);
-  const simplifiedTables = transform.zoom < SIMPLIFIED_TABLE_ZOOM;
+  const simplifiedTables = !exporting && transform.zoom < SIMPLIFIED_TABLE_ZOOM;
 
   const isSameElement = (el1, el2) => {
     return el1.id === el2.id && el1.type === el2.type;
@@ -963,7 +979,7 @@ export default function Canvas() {
                 className="pointer-events-none touch-none"
               />
             )}
-            <Slot name="svg-overlay" />
+            {!exporting && <Slot name="svg-overlay" />}
             {notes.map((n) => (
               <Note
                 key={n.id}
