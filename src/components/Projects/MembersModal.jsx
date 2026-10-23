@@ -14,6 +14,9 @@ import { messageForError } from "../../utils/authMessages";
 import { createMembersLoader } from "./membersLoader";
 import { MEMBER_ROLES, roleLabelKey } from "../../utils/projects";
 
+// Same width for every row's action so the role selects line up.
+const ACTION_WIDTH = "shrink-0 w-24";
+
 function RoleSelect({ value, onChange, disabled }) {
   const { t } = useTranslation();
   return (
@@ -21,6 +24,7 @@ function RoleSelect({ value, onChange, disabled }) {
       value={value}
       onChange={onChange}
       disabled={disabled}
+      className="shrink-0"
       style={{ width: 120 }}
       optionList={MEMBER_ROLES.map((role) => ({
         value: role,
@@ -73,6 +77,7 @@ function InviteForm({ projectId, onDone }) {
       <ErrorBanner message={error} />
       <div className="flex gap-2">
         <Input
+          className="flex-1 min-w-0"
           type="email"
           placeholder={t("email")}
           value={email}
@@ -81,6 +86,7 @@ function InviteForm({ projectId, onDone }) {
         />
         <RoleSelect value={role} onChange={setRole} />
         <Button
+          className={ACTION_WIDTH}
           theme="solid"
           loading={loading}
           disabled={!email.trim()}
@@ -125,7 +131,7 @@ export default function MembersModal({ projectId, visible, onClose }) {
       footer={null}
       width={560}
     >
-      <div className="space-y-4">
+      <div className="space-y-4 pb-6">
         <ErrorBanner message={error} />
         <ul className="space-y-2">
           {data.members.map((member) => (
@@ -143,8 +149,8 @@ export default function MembersModal({ projectId, visible, onClose }) {
                 }
               />
               <Button
+                className={ACTION_WIDTH}
                 type="danger"
-                size="small"
                 onClick={() =>
                   run(() => removeMember(projectId, member.userId))
                 }
@@ -165,7 +171,7 @@ export default function MembersModal({ projectId, visible, onClose }) {
                     {t(roleLabelKey(invitation.role))}
                   </span>
                   <Button
-                    size="small"
+                    className={ACTION_WIDTH}
                     onClick={() =>
                       run(() => removeInvitation(projectId, invitation.id))
                     }
