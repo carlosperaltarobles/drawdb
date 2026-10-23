@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Slot } from "../../context/ExtensionsContext";
+import { Slot, useExtensions } from "../../context/ExtensionsContext";
 import {
   Action,
   Cardinality,
@@ -71,6 +71,7 @@ export default function Canvas() {
   const { views, updateView } = useViews();
   const { notes, updateNote } = useNotes();
   const { layout } = useLayout();
+  const { projectMode } = useExtensions();
   const { settings } = useSettings();
   const { setUndoStack, setRedoStack } = useUndoRedo();
   const { transform, setTransform } = useTransform();
@@ -145,6 +146,11 @@ export default function Canvas() {
     metaKey: false,
   });
   const elementPointerDownRef = useRef(null);
+  const setPointerStyle = pointer.setStyle;
+
+  useEffect(() => {
+    setPointerStyle(layout.handTool ? "grab" : "default");
+  }, [layout.handTool, setPointerStyle]);
   const handleElementPointerDown = useCallback((element, type) => {
     elementPointerDownRef.current = { element, type };
   }, []);
@@ -517,6 +523,20 @@ export default function Canvas() {
     const isMouseMiddleButton = e.button === 1;
     const isMouseRightButton = e.button === 2;
 
+    if (layout.handTool && isMouseLeftButton) {
+      // Navigation only: cancel whatever the element under the pointer started.
+      setLinking(false);
+      setDragging(notDragging);
+      setAreaResize({ id: -1, dir: "none" });
+      setPanning({
+        isPanning: true,
+        panStart: transform.pan,
+        cursorStart: pointer.spaces.screen,
+      });
+      pointer.setStyle("grabbing");
+      return;
+    }
+
     if (isMouseLeftButton) {
       setBulkSelectRect({
         x1: pointer.spaces.diagram.x,
@@ -620,11 +640,12 @@ export default function Canvas() {
     setDragging(notDragging);
 
     if (panning.isPanning && didPan()) {
-      setSaveState(State.SAVING);
+      // In a project the view is local to each user, so panning saves nothing.
+      if (!projectMode) setSaveState(State.SAVING);
       if (e.button === 2) rightClickPanned.current = true;
     }
     setPanning((old) => ({ ...old, isPanning: false }));
-    pointer.setStyle("default");
+    pointer.setStyle(layout.handTool ? "grab" : "default");
 
     if (linking) handleLinking();
     setLinking(false);
@@ -783,7 +804,10 @@ export default function Canvas() {
   );
 
   return (
-    <div className="grow h-full touch-none" id="canvas">
+    <div
+      className={`grow h-full touch-none ${layout.handTool ? "hand-tool" : ""}`}
+      id="canvas"
+    >
       <div
         className="w-full h-full"
         style={{

@@ -234,7 +234,9 @@
   stroke-width: 2.5;
   fill: none;
   stroke-linecap: butt;
-  transition: stroke 0.2s ease, stroke-width 0.2s ease;
+  transition:
+    stroke 0.2s ease,
+    stroke-width 0.2s ease;
   pointer-events: stroke;
 }
 
@@ -243,5 +245,14 @@
   stroke-width: 6;
   stroke-dasharray: 12 8;
   animation: dash-right 1s linear infinite;
-  
+}
+
+/* Hand tool: the whole canvas pans, so every element shows the grab cursor. */
+#canvas.hand-tool,
+#canvas.hand-tool * {
+  cursor: grab !important;
+}
+#canvas.hand-tool:active,
+#canvas.hand-tool :active {
+  cursor: grabbing !important;
 }

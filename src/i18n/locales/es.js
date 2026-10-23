@@ -95,6 +95,7 @@ const es = {
     last_saved: "Último guardado",
     saving: "Guardando...",
     failed_to_save: "Error al guardar",
+    hand_tool: "Mano: arrastra para desplazarte",
     fit_window_reset: "Ajustar ventana / Restablecer",
     zoom: "Zoom",
     add_table: "Añadir tabla",

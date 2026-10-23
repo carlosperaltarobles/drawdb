@@ -45,7 +45,6 @@ import {
   SIDESHEET,
   DB,
   IMPORT_FROM,
-  noteWidth,
   pngExportPixelRatio,
   keyboardPanStep,
 } from "../../data/constants";
@@ -105,12 +104,7 @@ import {
   applyHistorySnapshot,
 } from "../../utils/history";
 import { findById, insertAt, newId, removeById } from "../../utils/ids";
-import { getTableHeight, getTableWidth } from "../../utils/utils";
-import {
-  getViewHeight,
-  getViewWidth,
-  resolveViewColumns,
-} from "../../utils/views";
+import { fitTransform } from "../../utils/fitView";
 import { autoArrange } from "../../utils/autoArrange";
 import { findAutoFKRelationships } from "../../utils/autoRelationships";
 import { deleteFromCache, STORAGE_KEY } from "../../utils/cache";
@@ -688,75 +682,26 @@ export default function ControlPanel({
   const resetView = () =>
     setTransform((prev) => ({ ...prev, zoom: 1, pan: { x: 0, y: 0 } }));
   const fitWindow = () => fitToView(tables);
+  const toggleHandTool = () =>
+    setLayout((prev) => ({ ...prev, handTool: !prev.handTool }));
+  useEffect(() => {
+    if (!layout.handTool) return;
+    // Capture phase: Semi UI popovers and tooltips stop Escape from bubbling.
+    const onKeyDown = (e) => {
+      if (e.key === "Escape")
+        setLayout((prev) => ({ ...prev, handTool: false }));
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [layout.handTool, setLayout]);
   const fitToView = (tablesToFit) => {
     const canvas = document.getElementById("canvas").getBoundingClientRect();
-
-    const minMaxXY = {
-      minX: Infinity,
-      minY: Infinity,
-      maxX: -Infinity,
-      maxY: -Infinity,
-    };
-
-    tablesToFit.forEach((table) => {
-      minMaxXY.minX = Math.min(minMaxXY.minX, table.x);
-      minMaxXY.minY = Math.min(minMaxXY.minY, table.y);
-      minMaxXY.maxX = Math.max(minMaxXY.maxX, table.x + getTableWidth(table));
-      minMaxXY.maxY = Math.max(
-        minMaxXY.maxY,
-        table.y + getTableHeight(table, settings.showComments, relationships),
-      );
-    });
-
-    views.forEach((view) => {
-      minMaxXY.minX = Math.min(minMaxXY.minX, view.x);
-      minMaxXY.minY = Math.min(minMaxXY.minY, view.y);
-      minMaxXY.maxX = Math.max(minMaxXY.maxX, view.x + getViewWidth(view));
-      minMaxXY.maxY = Math.max(
-        minMaxXY.maxY,
-        view.y +
-          getViewHeight(
-            view,
-            resolveViewColumns(view, tables),
-            settings.showComments,
-          ),
-      );
-    });
-
-    areas.forEach((area) => {
-      minMaxXY.minX = Math.min(minMaxXY.minX, area.x);
-      minMaxXY.minY = Math.min(minMaxXY.minY, area.y);
-      minMaxXY.maxX = Math.max(minMaxXY.maxX, area.x + area.width);
-      minMaxXY.maxY = Math.max(minMaxXY.maxY, area.y + area.height);
-    });
-
-    notes.forEach((note) => {
-      minMaxXY.minX = Math.min(minMaxXY.minX, note.x);
-      minMaxXY.minY = Math.min(minMaxXY.minY, note.y);
-      minMaxXY.maxX = Math.max(
-        minMaxXY.maxX,
-        note.x + (note.width ?? noteWidth),
-      );
-      minMaxXY.maxY = Math.max(minMaxXY.maxY, note.y + note.height);
-    });
-
-    const padding = 10;
-    const width = minMaxXY.maxX - minMaxXY.minX + padding;
-    const height = minMaxXY.maxY - minMaxXY.minY + padding;
-
-    const scaleX = canvas.width / width;
-    const scaleY = canvas.height / height;
-    // Making sure the scale is a multiple of 0.05
-    const scale = Math.floor(Math.min(scaleX, scaleY) * 20) / 20;
-
-    const centerX = (minMaxXY.minX + minMaxXY.maxX) / 2;
-    const centerY = (minMaxXY.minY + minMaxXY.maxY) / 2;
-
-    setTransform((prev) => ({
-      ...prev,
-      zoom: scale,
-      pan: { x: centerX, y: centerY },
-    }));
+    const next = fitTransform(
+      { tables: tablesToFit, views, areas, notes, relationships },
+      canvas,
+      settings.showComments,
+    );
+    if (next) setTransform((prev) => ({ ...prev, ...next }));
   };
   const autoArrangeTables = () => {
     if (!canEdit()) return;
@@ -2057,6 +2002,7 @@ export default function ControlPanel({
   useHotkeys("enter", resetView, EDITOR_HOTKEY);
   useHotkeys("mod+h", () => window.open(socials.docs, "_blank"), EDITOR_HOTKEY);
   useHotkeys("mod+alt+w", fitWindow, EDITOR_HOTKEY);
+  useHotkeys("h", toggleHandTool, EDITOR_HOTKEY);
   useHotkeys("alt+e", toggleDBMLEditor, EDITOR_HOTKEY);
   useHotkeys("left", panLeft, EDITOR_HOTKEY);
   useHotkeys("right", panRight, EDITOR_HOTKEY);
@@ -2217,6 +2163,18 @@ export default function ControlPanel({
               }
             >
               <i className="fa-solid fa-magnifying-glass-plus" />
+            </button>
+          </Tooltip>
+          <Tooltip content={`${t("hand_tool")} (H)`} position="bottom">
+            <button
+              aria-label={t("hand_tool")}
+              aria-pressed={layout.handTool}
+              className={`py-1 px-2 rounded-sm text-lg ${
+                layout.handTool ? "bg-blue-500 text-white" : "hover-2"
+              }`}
+              onClick={toggleHandTool}
+            >
+              <i className="fa-solid fa-hand" />
             </button>
           </Tooltip>
           <Divider layout="vertical" margin="8px" />

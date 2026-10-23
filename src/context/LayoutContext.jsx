@@ -12,6 +12,7 @@ const defaultLayout = {
   toolbar: true,
   dbmlEditor: false,
   readOnly: false,
+  handTool: false,
 };
 
 export default function LayoutContextProvider({ children }) {

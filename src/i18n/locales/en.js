@@ -96,6 +96,7 @@ const en = {
     last_saved: "Last saved",
     saving: "Saving...",
     failed_to_save: "Failed to save",
+    hand_tool: "Hand tool: drag to move around",
     fit_window_reset: "Fit window / Reset",
     zoom: "Zoom",
     add_table: "Add table",
