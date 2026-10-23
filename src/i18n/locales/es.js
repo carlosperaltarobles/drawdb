@@ -296,6 +296,9 @@ const es = {
     references: "Referencias",
     enum_deleted: "Enumeración eliminada",
     auto_arrange: "Organizar automáticamente",
+    arrange_horizontal: "Horizontal (de izquierda a derecha)",
+    arrange_vertical: "Vertical (de arriba hacia abajo)",
+    arrange_groups: "Por grupos",
     auto_connect_fk: "Conectar claves foráneas automáticamente",
     auto_connect_fk_success:
       "Se crearon {{count}} referencia(s) de clave foránea",

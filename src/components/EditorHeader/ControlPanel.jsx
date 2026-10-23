@@ -113,7 +113,7 @@ import {
   rasterizeSvgTiles,
   svgDataUrl,
 } from "../../utils/exportDiagram";
-import { autoArrange } from "../../utils/autoArrange";
+import { ARRANGE_MODES, autoArrange } from "../../utils/autoArrange";
 import { findAutoFKRelationships } from "../../utils/autoRelationships";
 import { deleteFromCache, STORAGE_KEY } from "../../utils/cache";
 import { DateTime } from "luxon";
@@ -816,9 +816,9 @@ export default function ControlPanel({
     );
     if (next) setTransform((prev) => ({ ...prev, ...next }));
   };
-  const autoArrangeTables = () => {
+  const autoArrangeTables = (mode) => {
     if (!canEdit()) return;
-    const positions = autoArrange(tables, relationships, settings);
+    const positions = autoArrange(tables, relationships, settings, mode);
     const positionById = new Map(positions.map((p) => [p.id, p]));
 
     const elements = [];
@@ -1829,8 +1829,11 @@ export default function ControlPanel({
         disabled: layout.readOnly,
       },
       auto_arrange: {
-        function: autoArrangeTables,
-        disabled: layout.readOnly,
+        children: ARRANGE_MODES.map((mode) => ({
+          name: t(`arrange_${mode}`),
+          function: () => autoArrangeTables(mode),
+          disabled: layout.readOnly,
+        })),
       },
       auto_connect_fk: {
         function: autoConnectFKs,
@@ -2360,15 +2363,33 @@ export default function ControlPanel({
             </button>
           </Tooltip>
           <Divider layout="vertical" margin="8px" />
-          <Tooltip content={t("auto_arrange")} position="bottom">
+          <Dropdown
+            position={isRtl(i18n.language) ? "bottomRight" : "bottomLeft"}
+            trigger="click"
+            render={
+              <Dropdown.Menu
+                style={isRtl(i18n.language) ? { direction: "rtl" } : {}}
+              >
+                {ARRANGE_MODES.map((mode) => (
+                  <Dropdown.Item
+                    key={mode}
+                    onClick={() => autoArrangeTables(mode)}
+                  >
+                    {t(`arrange_${mode}`)}
+                  </Dropdown.Item>
+                ))}
+              </Dropdown.Menu>
+            }
+          >
             <button
               className="py-1 px-2 hover-2 rounded-sm text-xl -mt-0.5 disabled:opacity-50"
-              onClick={autoArrangeTables}
               disabled={layout.readOnly}
+              title={t("auto_arrange")}
+              aria-label={t("auto_arrange")}
             >
               <i className="fa-solid fa-wand-magic-sparkles" />
             </button>
-          </Tooltip>
+          </Dropdown>
           <Divider layout="vertical" margin="8px" />
           <Tooltip content={t("save")} position="bottom">
             <button
