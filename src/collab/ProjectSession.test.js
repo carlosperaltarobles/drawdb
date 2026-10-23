@@ -34,24 +34,27 @@ function setup() {
   const applied = [];
   const states = [];
   const exits = [];
+  const notices = [];
   const session = new ProjectSession({
     projectId: "p",
     socket,
     onState: (state) => states.push(state),
     onExit: (reason) => exits.push(reason),
+    onNotice: (notice) => notices.push(notice),
   });
   session.registerAppliers((next, previous, reset) =>
     applied.push({ next, previous, reset }),
   );
   session.start();
   const receive = (event, payload) => listeners.get(event)?.(payload);
-  const snapshot = (value = doc(), version = 0, role = "editor") =>
+  const snapshot = (value = doc(), version = 0, role = "editor", epoch) =>
     sent
       .filter(([event]) => event === "join")
       .at(-1)[2]({
         ok: true,
         doc: value,
         version,
+        epoch,
         role,
         name: "Team",
         peers: [],
@@ -65,6 +68,7 @@ function setup() {
     applied,
     states,
     exits,
+    notices,
     listeners,
   };
 }
@@ -239,5 +243,86 @@ describe("ProjectSession", () => {
     receive("disconnect");
     expect(states.at(-1).peers).toEqual([]);
     expect(states.at(-1).awareness.size).toBe(0);
+  });
+  it("envía el epoch recibido en join con cada lote", () => {
+    const { session, snapshot, sent } = setup();
+    snapshot(doc(), 0, "editor", 3);
+    const initial = session.hydrate();
+    session.observe(initial);
+    session.observe({ ...initial, notes: [{ id: "n" }] });
+    vi.advanceTimersByTime(50);
+    const opsSent = sent.filter(([e]) => e === "ops");
+    expect(opsSent).toHaveLength(1);
+    expect(opsSent[0][1].epoch).toBe(3);
+  });
+  it("en previsualización los ops remotos se acumulan y se muestran al salir", () => {
+    const { session, snapshot, receive, applied, sent, states } = setup();
+    snapshot();
+    const initial = session.hydrate();
+    session.observe(initial);
+    const otroDoc = { ...doc(), notes: [{ id: "preview-note" }] };
+    const meta = { id: "s1", createdAt: "2026-10-23T12:00:00.000Z" };
+    session.startPreview(otroDoc, meta);
+    expect(states.at(-1).preview).toEqual(meta);
+    expect(applied.at(-1)).toEqual({
+      next: otroDoc,
+      previous: initial,
+      reset: false,
+    });
+    const appliedBeforeRemote = applied.length;
+    receive("ops", { version: 1, ops: [field("remote")] });
+    expect(applied).toHaveLength(appliedBeforeRemote);
+    session.observe(otroDoc);
+    session.observe({ ...otroDoc, notes: [{ id: "changed-in-preview" }] });
+    session.sendAwareness({ cursor: { x: 10, y: 20 } });
+    vi.advanceTimersByTime(100);
+    expect(sent.filter(([e]) => e === "ops")).toHaveLength(0);
+    expect(sent.filter(([e]) => e === "awareness")).toHaveLength(0);
+    session.endPreview();
+    expect(states.at(-1).preview).toBeNull();
+    expect(applied.at(-1).previous).toBe(otroDoc);
+    expect(applied.at(-1).reset).toBe(false);
+    expect(applied.at(-1).next.tables[0].fields).toEqual([{ id: "remote" }]);
+  });
+  it("restored durante la previsualización sale de ella y hace join", () => {
+    const { session, snapshot, receive, applied, sent, states, notices } =
+      setup();
+    snapshot();
+    const initial = session.hydrate();
+    session.observe(initial);
+    const otroDoc = { ...doc(), notes: [{ id: "preview-note" }] };
+    session.startPreview(otroDoc, { id: "s1" });
+    const joinsBefore = sent.filter(([e]) => e === "join").length;
+    receive("restored", {
+      by: { id: "u", name: "Ana" },
+      snapshotCreatedAt: "2026-10-23T12:40:00.000Z",
+    });
+    expect(states.at(-1).preview).toBeNull();
+    expect(sent.filter(([e]) => e === "join")).toHaveLength(joinsBefore + 1);
+    expect(notices).toEqual([
+      {
+        type: "restored",
+        by: { id: "u", name: "Ana" },
+        snapshotCreatedAt: "2026-10-23T12:40:00.000Z",
+      },
+    ]);
+    const restoredDoc = { ...doc(), notes: [{ id: "restored" }] };
+    snapshot(restoredDoc, 4, "editor", 1);
+    expect(applied.at(-1)).toEqual({
+      next: restoredDoc,
+      previous: initial,
+      reset: true,
+    });
+  });
+  it("canWrite es false durante la previsualización", () => {
+    const { session, snapshot } = setup();
+    snapshot();
+    const initial = session.hydrate();
+    session.observe(initial);
+    expect(session.canWrite()).toBe(true);
+    session.startPreview({ ...doc(), notes: [{ id: "p" }] }, { id: "s1" });
+    expect(session.canWrite()).toBe(false);
+    session.endPreview();
+    expect(session.canWrite()).toBe(true);
   });
 });
