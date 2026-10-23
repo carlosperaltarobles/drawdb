@@ -93,6 +93,8 @@ const es = {
     no_changes: "Sin cambios",
     loading: "Cargando...",
     generating_file: "Generando archivo...",
+    export_reduced_hint:
+      "Este diagrama mide {{width}} × {{height}} px, demasiado para una sola imagen nítida, así que se redujo al {{percent}} %. Para ver los detalles con zoom, exporta en PDF o SVG.",
     last_saved: "Último guardado",
     saving: "Guardando...",
     failed_to_save: "Error al guardar",

@@ -94,6 +94,8 @@ const en = {
     no_changes: "No changes",
     loading: "Loading...",
     generating_file: "Generating file...",
+    export_reduced_hint:
+      "This diagram is {{width}} × {{height}} px, too large for one sharp image, so it was scaled to {{percent}}%. To zoom into the details, export as PDF or SVG.",
     last_saved: "Last saved",
     saving: "Saving...",
     failed_to_save: "Failed to save",

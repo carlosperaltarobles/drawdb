@@ -1,4 +1,5 @@
 import {
+  Banner,
   Button,
   Image,
   Input,
@@ -380,11 +381,25 @@ export default function Modal({
         if (exportData.data !== "" || exportData.data) {
           return (
             <>
+              {modal === MODAL.IMG && exportData.warning && (
+                <Banner
+                  type="warning"
+                  closeIcon={null}
+                  className="mb-3 rounded-sm"
+                  description={exportData.warning}
+                />
+              )}
               {modal === MODAL.IMG ? (
                 <Image
                   src={exportData.data}
                   alt={t("coordinate_space_diagram")}
+                  width="100%"
                   height={280}
+                  imgStyle={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                  }}
                 />
               ) : (
                 <CodeEditor
