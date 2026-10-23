@@ -325,4 +325,17 @@ describe("ProjectSession", () => {
     session.endPreview();
     expect(session.canWrite()).toBe(true);
   });
+  it("envía la edición local pendiente al empezar una previsualización", () => {
+    const { session, snapshot, sent } = setup();
+    snapshot();
+    const initial = session.hydrate();
+    session.observe(initial);
+    session.observe({ ...initial, notes: [{ id: "pending" }] });
+    session.startPreview({ ...doc(), notes: [{ id: "p" }] }, { id: "s1" });
+    const opsSent = sent.filter(([e]) => e === "ops");
+    expect(opsSent).toHaveLength(1);
+    expect(opsSent[0][1].ops).toEqual([
+      { t: "add", coll: "notes", item: { id: "pending" }, index: 0 },
+    ]);
+  });
 });

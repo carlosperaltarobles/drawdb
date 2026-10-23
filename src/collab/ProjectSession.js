@@ -152,6 +152,8 @@ export class ProjectSession {
   }
 
   startPreview = (doc, meta) => {
+    // Send the local edit still waiting for its 50ms batch before going read-only.
+    if (this.localTimer && this.canWrite()) this.client.local(this.editorDoc);
     const previous = this.preview ? this.preview.doc : this.editorDoc;
     this.preview = { doc, meta };
     this.cancelTimers();
