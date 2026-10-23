@@ -11,15 +11,32 @@ import { Toast } from "@douyinfe/semi-ui";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { CollabContext } from "../context/CollabContext";
-import { useAuth } from "../hooks";
+import { useAuth, useSettings } from "../hooks";
+import { fitTransform } from "../utils/fitView";
 import { ProjectSession } from "./ProjectSession";
 import * as viewStorage from "./viewStorage";
+
+const DEFAULT_VIEW = { pan: { x: 0, y: 0 }, zoom: 1 };
+
+// First visit to a project: show the whole diagram instead of the origin,
+// which may be empty after an auto-arrange.
+function initialView(doc, showComments) {
+  const canvas = document.getElementById("canvas")?.getBoundingClientRect();
+  return (
+    fitTransform(
+      { ...doc, relationships: doc.relationships ?? [] },
+      canvas,
+      showComments,
+    ) ?? DEFAULT_VIEW
+  );
+}
 
 export const ProjectCollabContext = createContext(null);
 export const useProjectCollab = () => useContext(ProjectCollabContext);
 
 export default function ProjectCollabProvider({ projectId, children }) {
   const { user } = useAuth();
+  const { settings } = useSettings();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const callbacks = useRef();
@@ -61,10 +78,8 @@ export default function ProjectCollabProvider({ projectId, children }) {
       ...doc,
       references: doc.relationships,
       name: session.state.projectName,
-      ...(viewStorage.load(projectId, user.id) ?? {
-        pan: { x: 0, y: 0 },
-        zoom: 1,
-      }),
+      ...(viewStorage.load(projectId, user.id) ??
+        initialView(doc, settings.showComments)),
       canWrite:
         ["admin", "editor"].includes(session.state.role) &&
         session.state.status === "online",
@@ -80,7 +95,7 @@ export default function ProjectCollabProvider({ projectId, children }) {
       sendAwareness: session.sendAwareness,
       canWrite: session.canWrite,
     };
-  }, [session, projectId, user.id]);
+  }, [session, projectId, user.id, settings.showComments]);
   const collab = useMemo(
     () => ({
       emitDelta: () => {},
