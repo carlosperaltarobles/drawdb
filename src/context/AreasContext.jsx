@@ -3,7 +3,7 @@ import { createContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { findById, insertAt, newId, removeById } from "../utils/ids";
 import { Action, ObjectType, defaultBlue } from "../data/constants";
-import { useSelect, useTransform, useUndoRedo, useCollab } from "../hooks";
+import { useSelect, useGetTransform, useUndoRedo, useCollab } from "../hooks";
 import { cascadePosition } from "../utils/rect";
 
 export const AreasContext = createContext(null);
@@ -11,7 +11,7 @@ export const AreasContext = createContext(null);
 export default function AreasContextProvider({ children }) {
   const { t } = useTranslation();
   const [areas, setAreas] = useState([]);
-  const { transform } = useTransform();
+  const getTransform = useGetTransform();
   const { selectedElement, setSelectedElement } = useSelect();
   const { setUndoStack, setRedoStack } = useUndoRedo();
   const { emitDelta, isApplyingRemoteRef } = useCollab();
@@ -28,7 +28,10 @@ export default function AreasContextProvider({ children }) {
         id: newId(),
         name: `area_${areas.length}`,
         ...cascadePosition(
-          { x: transform.pan.x - width / 2, y: transform.pan.y - height / 2 },
+          {
+            x: getTransform().pan.x - width / 2,
+            y: getTransform().pan.y - height / 2,
+          },
           areas,
         ),
         width,

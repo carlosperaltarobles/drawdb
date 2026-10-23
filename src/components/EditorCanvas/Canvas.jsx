@@ -45,6 +45,11 @@ import {
 } from "../../utils/views";
 import { getRectFromEndpoints, isInsideRect } from "../../utils/rect";
 import { findById } from "../../utils/ids";
+import {
+  SIMPLIFIED_TABLE_ZOOM,
+  cullBounds,
+  cullElements,
+} from "../../utils/culling";
 import { State, noteWidth } from "../../data/constants";
 import { nanoid } from "nanoid";
 
@@ -171,6 +176,54 @@ export default function Canvas() {
     }
     return ids;
   }, [bulkSelectedElements, selectedElement.element, selectedElement.id]);
+
+  const tableBoxes = useMemo(
+    () =>
+      new Map(
+        tables.map((t) => [
+          t.id,
+          {
+            x: t.x,
+            y: t.y,
+            w: getTableWidth(t),
+            h: getTableHeight(t, settings.showComments, relationships),
+          },
+        ]),
+      ),
+    [tables, relationships, settings.showComments],
+  );
+
+  // Only draw what is on (or near) the screen: large diagrams have thousands
+  // of nodes and redrawing all of them on every pan step is what makes it slow.
+  const rendered = useMemo(() => {
+    const keepTableIds = new Set(selectedTableIds);
+    if (dragging.type === ObjectType.TABLE) keepTableIds.add(dragging.id);
+    if (linking) keepTableIds.add(linkingLine.startTableId);
+    return cullElements({
+      tables,
+      relationships,
+      boxes: tableBoxes,
+      bounds: cullBounds(viewBox),
+      keepTableIds,
+      keepRelationshipId:
+        selectedElement.element === ObjectType.RELATIONSHIP
+          ? selectedElement.id
+          : null,
+    });
+  }, [
+    tables,
+    relationships,
+    tableBoxes,
+    viewBox,
+    selectedTableIds,
+    dragging.type,
+    dragging.id,
+    linking,
+    linkingLine.startTableId,
+    selectedElement.element,
+    selectedElement.id,
+  ]);
+  const simplifiedTables = transform.zoom < SIMPLIFIED_TABLE_ZOOM;
 
   const isSameElement = (el1, el2) => {
     return el1.id === el2.id && el1.type === el2.type;
@@ -374,15 +427,16 @@ export default function Canvas() {
     if (!e.isPrimary) return;
 
     if (panning.isPanning) {
+      // Read the cursor from the event: the pointer in context is one render behind.
       setTransform((prev) => ({
         ...prev,
         pan: {
           x:
             panning.panStart.x +
-            (panning.cursorStart.x - pointer.spaces.screen.x) / transform.zoom,
+            (panning.cursorStart.x - e.clientX) / prev.zoom,
           y:
             panning.panStart.y +
-            (panning.cursorStart.y - pointer.spaces.screen.y) / transform.zoom,
+            (panning.cursorStart.y - e.clientY) / prev.zoom,
         },
       }));
       return;
@@ -531,7 +585,7 @@ export default function Canvas() {
       setPanning({
         isPanning: true,
         panStart: transform.pan,
-        cursorStart: pointer.spaces.screen,
+        cursorStart: { x: e.clientX, y: e.clientY },
       });
       pointer.setStyle("grabbing");
       return;
@@ -556,9 +610,9 @@ export default function Canvas() {
       setPanning({
         isPanning: true,
         panStart: transform.pan,
-        // Diagram space depends on the current panning.
-        // Use screen space to avoid circular dependencies and undefined behavior.
-        cursorStart: pointer.spaces.screen,
+        // Diagram space depends on the current panning, so use client
+        // coordinates; only their difference matters.
+        cursorStart: { x: e.clientX, y: e.clientY },
       });
       pointer.setStyle("grabbing");
     }
@@ -804,198 +858,217 @@ export default function Canvas() {
   );
 
   return (
-    <div
-      className={`grow h-full touch-none ${layout.handTool ? "hand-tool" : ""}`}
-      id="canvas"
-    >
+    <>
       <div
-        className="w-full h-full"
-        style={{
-          cursor: pointer.style,
-          backgroundColor: settings.mode === "dark" ? darkBgTheme : "white",
-        }}
+        className={`grow h-full touch-none ${layout.handTool ? "hand-tool" : ""}`}
+        id="canvas"
       >
-        <svg
-          id="diagram"
-          ref={canvasRef}
-          onPointerMove={handlePointerMove}
-          onPointerDown={handlePointerDown}
-          onPointerUp={handlePointerUp}
-          onContextMenu={(e) => {
-            if (rightClickPanned.current) {
-              e.preventDefault();
-              rightClickPanned.current = false;
-            }
+        <div
+          className="w-full h-full"
+          style={{
+            cursor: pointer.style,
+            backgroundColor: settings.mode === "dark" ? darkBgTheme : "white",
           }}
-          className="absolute w-full h-full touch-none"
-          viewBox={`${viewBox.left} ${viewBox.top} ${viewBox.width} ${viewBox.height}`}
         >
-          {settings.showGrid && (
-            <>
-              <defs>
-                <pattern
-                  id="pattern-grid"
-                  x={-gridCircleRadius}
-                  y={-gridCircleRadius}
-                  width={gridSize}
-                  height={gridSize}
-                  patternUnits="userSpaceOnUse"
-                  patternContentUnits="userSpaceOnUse"
-                >
-                  <circle
-                    cx={gridCircleRadius}
-                    cy={gridCircleRadius}
-                    r={gridCircleRadius}
-                    fill="rgb(99, 152, 191)"
-                    opacity="1"
-                  />
-                </pattern>
-              </defs>
-              <rect
-                x={viewBox.left}
-                y={viewBox.top}
-                width={viewBox.width}
-                height={viewBox.height}
-                fill="url(#pattern-grid)"
+          <svg
+            id="diagram"
+            ref={canvasRef}
+            onPointerMove={handlePointerMove}
+            onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
+            onContextMenu={(e) => {
+              if (rightClickPanned.current) {
+                e.preventDefault();
+                rightClickPanned.current = false;
+              }
+            }}
+            className="absolute w-full h-full touch-none"
+            viewBox={`${viewBox.left} ${viewBox.top} ${viewBox.width} ${viewBox.height}`}
+          >
+            {settings.showGrid && (
+              <>
+                <defs>
+                  <pattern
+                    id="pattern-grid"
+                    x={-gridCircleRadius}
+                    y={-gridCircleRadius}
+                    width={gridSize}
+                    height={gridSize}
+                    patternUnits="userSpaceOnUse"
+                    patternContentUnits="userSpaceOnUse"
+                  >
+                    <circle
+                      cx={gridCircleRadius}
+                      cy={gridCircleRadius}
+                      r={gridCircleRadius}
+                      fill="rgb(99, 152, 191)"
+                      opacity="1"
+                    />
+                  </pattern>
+                </defs>
+                <rect
+                  x={viewBox.left}
+                  y={viewBox.top}
+                  width={viewBox.width}
+                  height={viewBox.height}
+                  fill="url(#pattern-grid)"
+                />
+              </>
+            )}
+            {areas.map((a) => (
+              <Area
+                key={a.id}
+                data={a}
+                setResize={setAreaResize}
+                setInitDimensions={setAreaInitDimensions}
+                onPointerDown={handleElementPointerDown}
               />
-            </>
-          )}
-          {areas.map((a) => (
-            <Area
-              key={a.id}
-              data={a}
-              setResize={setAreaResize}
-              setInitDimensions={setAreaInitDimensions}
-              onPointerDown={handleElementPointerDown}
-            />
-          ))}
-          {relationships.map((e) => (
-            <Relationship
-              key={e.id}
-              data={e}
-              startTable={tablesById.get(e.startTableId)}
-              endTable={tablesById.get(e.endTableId)}
-              relationships={relationships}
-            />
-          ))}
-          {tables.map((table) => (
-            <Table
-              key={table.id}
-              tableData={table}
-              isSelected={selectedTableIds.has(table.id)}
-              zoom={transform.zoom}
-              database={database}
-              relationships={relationships}
-              setHoveredTable={setHoveredTable}
-              handleGripField={handleGripField}
-              setLinkingLine={setLinkingLine}
-              onPointerDown={handleElementPointerDown}
-            />
-          ))}
-          {views.map((view) => (
-            <View
-              key={view.id}
-              viewData={view}
-              onPointerDown={handleElementPointerDown}
-            />
-          ))}
-          {linking && (
-            <path
-              d={`M ${linkingLine.startX} ${linkingLine.startY} L ${linkingLine.endX} ${linkingLine.endY}`}
-              stroke="red"
-              strokeDasharray="8,8"
-              className="pointer-events-none touch-none"
-            />
-          )}
-          <Slot name="svg-overlay" />
-          {notes.map((n) => (
-            <Note
-              key={n.id}
-              data={n}
-              onPointerDown={handleElementPointerDown}
-            />
-          ))}
-          {bulkSelectRect.show && (
-            <rect
-              {...getRectFromEndpoints(bulkSelectRect)}
-              stroke="grey"
-              fill="grey"
-              fillOpacity={0.15}
-              strokeDasharray={10}
-            />
-          )}
-        </svg>
+            ))}
+            {rendered.relationships.map((e) => (
+              <Relationship
+                key={e.id}
+                data={e}
+                startTable={tablesById.get(e.startTableId)}
+                endTable={tablesById.get(e.endTableId)}
+                relationships={relationships}
+              />
+            ))}
+            {rendered.tables.map((table) => (
+              <Table
+                key={table.id}
+                tableData={table}
+                isSelected={selectedTableIds.has(table.id)}
+                zoom={transform.zoom}
+                simplified={simplifiedTables}
+                database={database}
+                relationships={relationships}
+                setHoveredTable={setHoveredTable}
+                handleGripField={handleGripField}
+                setLinkingLine={setLinkingLine}
+                onPointerDown={handleElementPointerDown}
+              />
+            ))}
+            {views.map((view) => (
+              <View
+                key={view.id}
+                viewData={view}
+                onPointerDown={handleElementPointerDown}
+              />
+            ))}
+            {linking && (
+              <path
+                d={`M ${linkingLine.startX} ${linkingLine.startY} L ${linkingLine.endX} ${linkingLine.endY}`}
+                stroke="red"
+                strokeDasharray="8,8"
+                className="pointer-events-none touch-none"
+              />
+            )}
+            <Slot name="svg-overlay" />
+            {notes.map((n) => (
+              <Note
+                key={n.id}
+                data={n}
+                onPointerDown={handleElementPointerDown}
+              />
+            ))}
+            {bulkSelectRect.show && (
+              <rect
+                {...getRectFromEndpoints(bulkSelectRect)}
+                stroke="grey"
+                fill="grey"
+                fillOpacity={0.15}
+                strokeDasharray={10}
+              />
+            )}
+          </svg>
+        </div>
+        {settings.showDebugCoordinates && (
+          <div className="fixed flex flex-col flex-wrap gap-6 bg-[rgba(var(--semi-grey-1),var(--tw-bg-opacity))]/40 border border-color bottom-4 right-4 p-4 rounded-xl backdrop-blur-xs pointer-events-none select-none">
+            <table className="table-auto grow">
+              <thead>
+                <tr>
+                  <th className="text-left" colSpan={3}>
+                    {t("transform")}
+                  </th>
+                </tr>
+                <tr className="italic [&_th]:font-normal [&_th]:text-right">
+                  <th>pan x</th>
+                  <th>pan y</th>
+                  <th>scale</th>
+                </tr>
+              </thead>
+              <tbody className="[&_td]:text-right [&_td]:min-w-[8ch]">
+                <tr>
+                  <td>{transform.pan.x.toFixed(2)}</td>
+                  <td>{transform.pan.y.toFixed(2)}</td>
+                  <td>{transform.zoom.toFixed(4)}</td>
+                </tr>
+              </tbody>
+            </table>
+            <table className="table-auto grow [&_th]:text-left [&_th:not(:first-of-type)]:text-right [&_td:not(:first-of-type)]:text-right [&_td]:min-w-[8ch]">
+              <thead>
+                <tr>
+                  <th colSpan={4}>{t("viewbox")}</th>
+                </tr>
+                <tr className="italic [&_th]:font-normal">
+                  <th>left</th>
+                  <th>top</th>
+                  <th>width</th>
+                  <th>height</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>{viewBox.left.toFixed(2)}</td>
+                  <td>{viewBox.top.toFixed(2)}</td>
+                  <td>{viewBox.width.toFixed(2)}</td>
+                  <td>{viewBox.height.toFixed(2)}</td>
+                </tr>
+              </tbody>
+            </table>
+            <table className="table-auto grow [&_th]:text-left [&_th:not(:first-of-type)]:text-right [&_td:not(:first-of-type)]:text-right [&_td]:min-w-[8ch]">
+              <thead>
+                <tr>
+                  <th colSpan={3}>{t("cursor_coordinates")}</th>
+                </tr>
+                <tr className="italic [&_th]:font-normal">
+                  <th>{t("coordinate_space")}</th>
+                  <th>x</th>
+                  <th>y</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>{t("coordinate_space_screen")}</td>
+                  <td>{pointer.spaces.screen.x.toFixed(2)}</td>
+                  <td>{pointer.spaces.screen.y.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td>{t("coordinate_space_diagram")}</td>
+                  <td>{pointer.spaces.diagram.x.toFixed(2)}</td>
+                  <td>{pointer.spaces.diagram.y.toFixed(2)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-      {settings.showDebugCoordinates && (
-        <div className="fixed flex flex-col flex-wrap gap-6 bg-[rgba(var(--semi-grey-1),var(--tw-bg-opacity))]/40 border border-color bottom-4 right-4 p-4 rounded-xl backdrop-blur-xs pointer-events-none select-none">
-          <table className="table-auto grow">
-            <thead>
-              <tr>
-                <th className="text-left" colSpan={3}>
-                  {t("transform")}
-                </th>
-              </tr>
-              <tr className="italic [&_th]:font-normal [&_th]:text-right">
-                <th>pan x</th>
-                <th>pan y</th>
-                <th>scale</th>
-              </tr>
-            </thead>
-            <tbody className="[&_td]:text-right [&_td]:min-w-[8ch]">
-              <tr>
-                <td>{transform.pan.x.toFixed(2)}</td>
-                <td>{transform.pan.y.toFixed(2)}</td>
-                <td>{transform.zoom.toFixed(4)}</td>
-              </tr>
-            </tbody>
-          </table>
-          <table className="table-auto grow [&_th]:text-left [&_th:not(:first-of-type)]:text-right [&_td:not(:first-of-type)]:text-right [&_td]:min-w-[8ch]">
-            <thead>
-              <tr>
-                <th colSpan={4}>{t("viewbox")}</th>
-              </tr>
-              <tr className="italic [&_th]:font-normal">
-                <th>left</th>
-                <th>top</th>
-                <th>width</th>
-                <th>height</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>{viewBox.left.toFixed(2)}</td>
-                <td>{viewBox.top.toFixed(2)}</td>
-                <td>{viewBox.width.toFixed(2)}</td>
-                <td>{viewBox.height.toFixed(2)}</td>
-              </tr>
-            </tbody>
-          </table>
-          <table className="table-auto grow [&_th]:text-left [&_th:not(:first-of-type)]:text-right [&_td:not(:first-of-type)]:text-right [&_td]:min-w-[8ch]">
-            <thead>
-              <tr>
-                <th colSpan={3}>{t("cursor_coordinates")}</th>
-              </tr>
-              <tr className="italic [&_th]:font-normal">
-                <th>{t("coordinate_space")}</th>
-                <th>x</th>
-                <th>y</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>{t("coordinate_space_screen")}</td>
-                <td>{pointer.spaces.screen.x.toFixed(2)}</td>
-                <td>{pointer.spaces.screen.y.toFixed(2)}</td>
-              </tr>
-              <tr>
-                <td>{t("coordinate_space_diagram")}</td>
-                <td>{pointer.spaces.diagram.x.toFixed(2)}</td>
-                <td>{pointer.spaces.diagram.y.toFixed(2)}</td>
-              </tr>
-            </tbody>
-          </table>
+      {/* Outside #canvas so image exports do not capture it. */}
+      {simplifiedTables && tables.length > 0 && (
+        <div
+          role="status"
+          className={`absolute top-3 left-1/2 -translate-x-1/2 z-10 max-w-[90%] px-3 py-1 rounded-lg border text-xs shadow-sm pointer-events-none select-none ${
+            settings.mode === "light"
+              ? "bg-white/90 border-zinc-200 text-zinc-700"
+              : "bg-zinc-800/90 border-zinc-700 text-zinc-200"
+          }`}
+        >
+          <i className="fa-solid fa-magnifying-glass-plus me-2" />
+          {t("simplified_view_hint", {
+            zoom: Math.round(SIMPLIFIED_TABLE_ZOOM * 100),
+          })}
         </div>
       )}
-    </div>
+    </>
   );
 }

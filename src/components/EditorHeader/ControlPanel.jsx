@@ -105,6 +105,7 @@ import {
 } from "../../utils/history";
 import { findById, insertAt, newId, removeById } from "../../utils/ids";
 import { fitTransform } from "../../utils/fitView";
+import { SIMPLIFIED_TABLE_ZOOM } from "../../utils/culling";
 import { autoArrange } from "../../utils/autoArrange";
 import { findAutoFKRelationships } from "../../utils/autoRelationships";
 import { deleteFromCache, STORAGE_KEY } from "../../utils/cache";
@@ -664,7 +665,19 @@ export default function ControlPanel({
       showFieldSummary: !prev.showFieldSummary,
     }));
   };
+  // Images capture the canvas as drawn, so warn when tables are simplified.
+  // (The image export modal shows the same warning itself.)
+  const warnIfSimplifiedExport = () => {
+    if (transform.zoom >= SIMPLIFIED_TABLE_ZOOM) return;
+    Toast.info({
+      content: t("simplified_export_hint", {
+        zoom: Math.round(SIMPLIFIED_TABLE_ZOOM * 100),
+      }),
+      duration: 6,
+    });
+  };
   const copyAsImage = () => {
+    warnIfSimplifiedExport();
     toPng(document.getElementById("canvas"), {
       pixelRatio: pngExportPixelRatio,
     }).then(function (dataUrl) {
@@ -1573,6 +1586,7 @@ export default function ControlPanel({
           {
             name: "PDF",
             function: () => {
+              warnIfSimplifiedExport();
               const canvas = document.getElementById("canvas");
               const filename = `${title}_${new Date().toISOString()}`;
               toJpeg(canvas).then(function (dataUrl) {

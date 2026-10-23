@@ -1,4 +1,5 @@
 import {
+  Banner,
   Button,
   Image,
   Input,
@@ -20,6 +21,7 @@ import {
   useEnums,
   useNavigateWithParams,
   useNotes,
+  useGetTransform,
   useTransform,
   useTypes,
   useUndoRedo,
@@ -48,6 +50,7 @@ import Rename from "./Rename";
 import Share from "./Share";
 import { mergeCustomTypes } from "../../../utils/customTypes";
 import { newId } from "../../../utils/ids";
+import { SIMPLIFIED_TABLE_ZOOM } from "../../../utils/culling";
 
 const extensionToLanguage = {
   md: "markdown",
@@ -75,6 +78,7 @@ export default function Modal({
   const { setEnums } = useEnums();
   const { setViews } = useViews();
   const { setTransform } = useTransform();
+  const getTransform = useGetTransform();
   const { setUndoStack, setRedoStack } = useUndoRedo();
   const [uncontrolledTitle, setUncontrolledTitle] = useState(title);
   const [uncontrolledLanguage, setUncontrolledLanguage] = useState(
@@ -380,6 +384,17 @@ export default function Modal({
         if (exportData.data !== "" || exportData.data) {
           return (
             <>
+              {modal === MODAL.IMG &&
+                getTransform().zoom < SIMPLIFIED_TABLE_ZOOM && (
+                  <Banner
+                    type="warning"
+                    closeIcon={null}
+                    className="mb-3 rounded-sm"
+                    description={t("simplified_export_hint", {
+                      zoom: Math.round(SIMPLIFIED_TABLE_ZOOM * 100),
+                    })}
+                  />
+                )}
               {modal === MODAL.IMG ? (
                 <Image
                   src={exportData.data}

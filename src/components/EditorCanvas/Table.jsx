@@ -51,11 +51,13 @@ import {
   getRelationshipFields,
 } from "../../utils/utils";
 import ResizeHandles from "./ResizeHandles";
+import SimplifiedTable from "./SimplifiedTable";
 
 export default memo(function Table({
   tableData,
   isSelected,
   zoom,
+  simplified,
   database,
   relationships,
   onPointerDown,
@@ -238,6 +240,26 @@ export default memo(function Table({
   };
 
   if (tableData.hidden) return null;
+
+  if (simplified) {
+    return (
+      <>
+        <SimplifiedTable
+          table={tableData}
+          fields={visibleFields}
+          width={width}
+          height={height}
+          zoom={zoom}
+          isSelected={isSelected}
+          darkMode={settings.mode !== "light"}
+          showComments={settings.showComments}
+          onPointerDown={() => onPointerDown(tableData, ObjectType.TABLE)}
+          onDoubleClick={openEditor}
+        />
+        <TableEditSheet tableData={tableData} />
+      </>
+    );
+  }
 
   return (
     <>

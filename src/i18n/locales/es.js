@@ -96,6 +96,10 @@ const es = {
     saving: "Guardando...",
     failed_to_save: "Error al guardar",
     hand_tool: "Mano: arrastra para desplazarte",
+    simplified_view_hint:
+      "Vista simplificada: acércate a más del {{zoom}} % para ver campos y crear relaciones",
+    simplified_export_hint:
+      "Con el zoom por debajo del {{zoom}} %, las tablas se exportan en vista simplificada. Acércate para exportarlas con todos sus campos.",
     fit_window_reset: "Ajustar ventana / Restablecer",
     zoom: "Zoom",
     add_table: "Añadir tabla",
