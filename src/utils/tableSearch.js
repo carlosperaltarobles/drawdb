@@ -12,6 +12,7 @@ export function buildSearchOptions(tables = [], mode = "tables") {
           value: `t:${table.id}`,
           kind: "table",
           label: table.name,
+          searchText: table.name,
           tableId: table.id,
         }))
       : [];
@@ -23,6 +24,7 @@ export function buildSearchOptions(tables = [], mode = "tables") {
             value: `c:${table.id}:${field.id ?? fieldIndex}`,
             kind: "column",
             label: `${table.name}.${field.name}`,
+            searchText: field.name,
             tableId: table.id,
             fieldIndex,
           })),
@@ -37,6 +39,6 @@ export function filterSearchOptions(options = [], query = "") {
   if (!trimmed) return options;
   const normalizedQuery = normalizeSearch(trimmed);
   return options.filter((option) =>
-    normalizeSearch(option.label).includes(normalizedQuery),
+    normalizeSearch(option.searchText ?? option.label).includes(normalizedQuery),
   );
 }

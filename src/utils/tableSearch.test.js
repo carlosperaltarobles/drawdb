@@ -55,7 +55,7 @@ describe("tableSearch", () => {
     const options = buildSearchOptions(sampleTables, "tables");
     expect(options).toHaveLength(2);
     expect(options.every((o) => o.kind === "table")).toBe(true);
-    expect(options[0]).toEqual({
+    expect(options[0]).toMatchObject({
       value: "t:t1",
       kind: "table",
       label: "pedidos",
@@ -87,5 +87,16 @@ describe("tableSearch", () => {
     const options = buildSearchOptions(sampleTables, "both");
     expect(filterSearchOptions(options, "")).toEqual(options);
     expect(filterSearchOptions(options, "   ")).toEqual(options);
+  });
+  it("column mode matches the column name, not the table name", () => {
+    const tables = [
+      { id: "1", name: "pedidos", fields: [{ id: "a", name: "id" }] },
+      { id: "2", name: "pagos", fields: [{ id: "b", name: "pedido_id" }] },
+    ];
+    const filtered = filterSearchOptions(
+      buildSearchOptions(tables, "columns"),
+      "ped",
+    );
+    expect(filtered.map((o) => o.label)).toEqual(["pagos.pedido_id"]);
   });
 });
