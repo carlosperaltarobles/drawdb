@@ -111,6 +111,7 @@ export default function DiagramContextProvider({ children }) {
         data: [created],
       });
     }
+    return data?.table?.id ?? newTable.id;
   };
 
   const deleteTable = (id, addToHistory = true) => {
