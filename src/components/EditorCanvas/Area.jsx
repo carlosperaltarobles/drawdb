@@ -24,9 +24,11 @@ import {
 } from "../../hooks";
 import { useTranslation } from "react-i18next";
 import { useHover } from "usehooks-ts";
+import { DIMMED_OPACITY } from "../../utils/relatedTables";
 
 export default memo(function Area({
   data,
+  dimmed = false,
   onPointerDown,
   setResize,
   setInitDimensions,
@@ -152,7 +154,14 @@ export default memo(function Area({
   }, [selectedElement, data, bulkSelectedElements]);
 
   return (
-    <g ref={ref}>
+    <g
+      ref={ref}
+      style={
+        dimmed
+          ? { opacity: DIMMED_OPACITY, pointerEvents: "none" }
+          : undefined
+      }
+    >
       <foreignObject
         key={data.id}
         x={data.x}
@@ -216,7 +225,7 @@ export default memo(function Area({
           </div>
         </div>
       </foreignObject>
-      {isHovered && (
+      {isHovered && !dimmed && (
         <>
           <circle
             cx={data.x}

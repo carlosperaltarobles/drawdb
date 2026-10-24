@@ -1,4 +1,5 @@
 import { tableColorStripHeight, tableHeaderHeight } from "../../data/constants";
+import { DIMMED_OPACITY } from "../../utils/relatedTables";
 import { getCommentHeight, getFieldHeight } from "../../utils/utils";
 
 const COLOR_STRIP_HEIGHT = 10;
@@ -16,6 +17,7 @@ export default function SimplifiedTable({
   height,
   zoom,
   isSelected,
+  dimmed = false,
   darkMode,
   showComments,
   onPointerDown,
@@ -45,6 +47,11 @@ export default function SimplifiedTable({
   return (
     <g
       className="cursor-move"
+      style={
+        dimmed
+          ? { opacity: DIMMED_OPACITY, pointerEvents: "none" }
+          : undefined
+      }
       onPointerDown={onPointerDown}
       onDoubleClick={onDoubleClick}
     >

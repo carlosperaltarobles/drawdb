@@ -28,6 +28,7 @@ import {
 import ViewInfo from "../EditorSidePanel/ViewsTab/ViewInfo";
 import { useTranslation } from "react-i18next";
 import { resolveType } from "../../utils/customTypes";
+import { DIMMED_OPACITY } from "../../utils/relatedTables";
 import {
   getViewHeight,
   getViewWidth,
@@ -35,7 +36,7 @@ import {
 } from "../../utils/views";
 import ResizeHandles from "./ResizeHandles";
 
-export default memo(function View({ viewData, onPointerDown }) {
+export default memo(function View({ viewData, dimmed = false, onPointerDown }) {
   const [hovered, setHovered] = useState(false);
   const [resizeEngaged, setResizeEngaged] = useState(false);
   const { layout } = useLayout();
@@ -203,6 +204,11 @@ export default memo(function View({ viewData, onPointerDown }) {
         y={viewData.y}
         width={width}
         height={height}
+        style={
+          dimmed
+            ? { opacity: DIMMED_OPACITY, pointerEvents: "none" }
+            : undefined
+        }
         className="group drop-shadow-lg rounded-md cursor-move"
         onPointerDown={() => onPointerDown(viewData, ObjectType.VIEW)}
         onPointerEnter={(e) => e.isPrimary && setHovered(true)}
@@ -354,7 +360,7 @@ export default memo(function View({ viewData, onPointerDown }) {
           })}
         </div>
       </foreignObject>
-      {!layout.readOnly && !viewData.locked && (
+      {!layout.readOnly && !viewData.locked && !dimmed && (
         <ResizeHandles
           x={viewData.x}
           y={viewData.y}
