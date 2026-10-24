@@ -17,6 +17,8 @@ import {
   IconKeyStroked,
   IconLock,
   IconUnlock,
+  IconShareStroked,
+  IconScan,
 } from "@douyinfe/semi-icons";
 import { nanoid } from "nanoid";
 import {
@@ -33,12 +35,14 @@ import {
   useDiagram,
   useSelect,
   useUndoRedo,
+  useFocus,
 } from "../../hooks";
 import { DiagramActionsContext } from "../../context/DiagramContext";
 import { SelectActionsContext } from "../../context/SelectContext";
 import TableInfo from "../EditorSidePanel/TablesTab/TableInfo";
 import { useTranslation } from "react-i18next";
 import { resolveType } from "../../utils/customTypes";
+import { DIMMED_OPACITY } from "../../utils/relatedTables";
 import { isRtl } from "../../i18n/utils/rtl";
 import i18n from "../../i18n/i18n";
 import {
@@ -60,6 +64,8 @@ export default memo(function Table({
   simplified,
   database,
   relationships,
+  dimmed = false,
+  linking = false,
   onPointerDown,
   setHoveredTable,
   handleGripField,
@@ -77,6 +83,8 @@ export default memo(function Table({
   const { t } = useTranslation();
   const { setSelectedElement, setBulkSelectedElements } =
     useContext(SelectActionsContext);
+  const { openRelated, startFocus, includeTable, flashTableId } =
+    useFocus() ?? {};
 
   const borderColor = useMemo(
     () => (settings.mode === "light" ? "border-zinc-300" : "border-zinc-600"),
@@ -182,6 +190,7 @@ export default memo(function Table({
       indices: tableData.indices.map((idx) => ({ ...idx, id: nanoid() })),
     };
     addTable({ table: duplicated });
+    includeTable?.(duplicated.id);
   };
 
   const openEditor = () => {
@@ -241,6 +250,11 @@ export default memo(function Table({
 
   if (tableData.hidden) return null;
 
+  const isFlashing = flashTableId === tableData.id;
+  const prefersReducedMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+
   if (simplified) {
     return (
       <>
@@ -251,10 +265,13 @@ export default memo(function Table({
           height={height}
           zoom={zoom}
           isSelected={isSelected}
+          dimmed={dimmed}
           darkMode={settings.mode !== "light"}
           showComments={settings.showComments}
-          onPointerDown={() => onPointerDown(tableData, ObjectType.TABLE)}
-          onDoubleClick={openEditor}
+          onPointerDown={() =>
+            !dimmed && onPointerDown(tableData, ObjectType.TABLE)
+          }
+          onDoubleClick={dimmed ? undefined : openEditor}
         />
         <TableEditSheet tableData={tableData} />
       </>
@@ -269,24 +286,37 @@ export default memo(function Table({
         y={tableData.y}
         width={width}
         height={height}
+        overflow={isFlashing ? "visible" : undefined}
+        style={{
+          opacity: dimmed ? DIMMED_OPACITY : undefined,
+          pointerEvents: dimmed && !linking ? "none" : undefined,
+        }}
         className="group drop-shadow-lg rounded-md cursor-move"
-        onPointerDown={() => onPointerDown(tableData, ObjectType.TABLE)}
-        onPointerEnter={(e) => e.isPrimary && setHovered(true)}
+        onPointerDown={() =>
+          !dimmed && onPointerDown(tableData, ObjectType.TABLE)
+        }
+        onPointerEnter={(e) => e.isPrimary && !dimmed && setHovered(true)}
         onPointerLeave={(e) => e.isPrimary && setHovered(false)}
       >
         <div
-          onDoubleClick={openEditor}
+          onDoubleClick={dimmed ? undefined : openEditor}
           className={`border-2 hover:border-dashed hover:border-blue-500
                select-none rounded-lg w-full ${
                  settings.mode === "light"
                    ? "bg-zinc-100 text-zinc-800"
                    : "bg-zinc-800 text-zinc-200"
                } ${
-                 resizeEngaged
-                   ? "border-dashed border-blue-500"
-                   : isSelected
-                     ? "border-solid border-blue-500"
-                     : borderColor
+                 isFlashing
+                   ? `border-solid border-blue-500 ring-4 ring-blue-500/60 ${
+                       prefersReducedMotion
+                         ? ""
+                         : "animate-pulse motion-reduce:animate-none"
+                     }`
+                   : resizeEngaged
+                     ? "border-dashed border-blue-500"
+                     : isSelected
+                       ? "border-solid border-blue-500"
+                       : borderColor
                }`}
           style={{ direction: "ltr" }}
         >
@@ -380,6 +410,26 @@ export default memo(function Table({
                         >
                           {t("duplicate")}
                         </Button>
+                        <Button
+                          icon={<IconShareStroked />}
+                          type="tertiary"
+                          theme="borderless"
+                          block
+                          style={{ justifyContent: "flex-start" }}
+                          onClick={() => openRelated?.(tableData.id)}
+                        >
+                          {t("view_related")}
+                        </Button>
+                        <Button
+                          icon={<IconScan />}
+                          type="tertiary"
+                          theme="borderless"
+                          block
+                          style={{ justifyContent: "flex-start" }}
+                          onClick={() => startFocus?.(tableData.id, 1)}
+                        >
+                          {t("focus_on_canvas")}
+                        </Button>
                         <Divider className="!my-1" />
                         <Button
                           icon={<IconDeleteStroked />}
@@ -443,7 +493,7 @@ export default memo(function Table({
           })}
         </div>
       </foreignObject>
-      {!layout.readOnly && !tableData.locked && (
+      {!layout.readOnly && !tableData.locked && !dimmed && (
         <ResizeHandles
           x={tableData.x}
           y={tableData.y}
@@ -536,7 +586,7 @@ export default memo(function Table({
             </span>
           </div>
           <div className="text-zinc-400">
-            {hoveredField === index ? (
+            {hoveredField === index && !dimmed ? (
               <Button
                 theme="solid"
                 size="small"

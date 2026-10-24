@@ -28,8 +28,11 @@ import {
   useEnums,
   useViews,
   useNavigateWithParams,
+  useFocus,
 } from "../hooks";
 import FloatingControls from "./FloatingControls";
+import FocusBar from "./RelatedTables/FocusBar";
+import RelatedTablesModal from "./RelatedTables/RelatedTablesModal";
 import { Button, Modal, Tag } from "@douyinfe/semi-ui";
 import { IconAlertTriangle } from "@douyinfe/semi-icons";
 import { useTranslation } from "react-i18next";
@@ -79,6 +82,7 @@ export default function WorkSpace({ forcedDiagramId } = {}) {
   const { transform, setTransform } = useTransform();
   const { enums, setEnums } = useEnums();
   const { views, setViews } = useViews();
+  const { relatedRootId, closeRelated, startFocus } = useFocus() ?? {};
   const {
     tables,
     relationships,
@@ -574,6 +578,7 @@ export default function WorkSpace({ forcedDiagramId } = {}) {
             <Slot name="canvas-layer" />
           </CanvasContextProvider>
           <Slot name="canvas-overlay" />
+          <FocusBar />
           {layout.toolbar && (
             <div
               ref={setToolbarContainer}
@@ -703,6 +708,11 @@ export default function WorkSpace({ forcedDiagramId } = {}) {
       >
         {t("restore_warning")}
       </Modal>
+      <RelatedTablesModal
+        rootId={relatedRootId}
+        onClose={closeRelated}
+        onFocus={(id, d) => startFocus(id, d)}
+      />
     </div>
   );
 }

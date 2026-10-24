@@ -25,8 +25,9 @@ import {
 } from "../../hooks";
 import { useTranslation } from "react-i18next";
 import { noteWidth, noteRadius, noteFold } from "../../data/constants";
+import { DIMMED_OPACITY } from "../../utils/relatedTables";
 
-export default memo(function Note({ data, onPointerDown }) {
+export default memo(function Note({ data, dimmed = false, onPointerDown }) {
   const [editField, setEditField] = useState({});
   const [hovered, setHovered] = useState(false);
   const [resizing, setResizing] = useState(false);
@@ -206,6 +207,11 @@ export default memo(function Note({ data, onPointerDown }) {
 
   return (
     <g
+      style={
+        dimmed
+          ? { opacity: DIMMED_OPACITY, pointerEvents: "none" }
+          : undefined
+      }
       onPointerEnter={(e) => e.isPrimary && setHovered(true)}
       onPointerLeave={(e) => e.isPrimary && setHovered(false)}
       onPointerDown={(e) => {
