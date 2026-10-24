@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { memo, useCallback, useRef } from "react";
 import { Collapse, Button } from "@douyinfe/semi-ui";
 import {
   IconEyeOpened,
@@ -18,6 +18,7 @@ import {
   useFocus,
 } from "../../../hooks";
 import useLocateTable from "../../../hooks/useLocateTable";
+import useLayoutStable from "../../../hooks/useLayoutStable";
 import { Action, ObjectType, State } from "../../../data/constants";
 import { sameIgnoringLayout } from "../../../utils/layoutFields";
 import { useTranslation } from "react-i18next";
@@ -26,6 +27,35 @@ import { SortableList } from "../../SortableList/SortableList";
 import SearchBar from "./SearchBar";
 import Empty from "../Empty";
 import TableInfo from "./TableInfo";
+
+const noop = () => {};
+
+const TablesList = memo(function TablesList({
+  tables,
+  activeKey,
+  onActiveChange,
+  onReorder,
+  renderItem,
+}) {
+  return (
+    <Collapse
+      activeKey={activeKey}
+      keepDOM={false}
+      lazyRender
+      onChange={onActiveChange}
+      accordion
+    >
+      <SortableList
+        keyPrefix="tables-tab"
+        items={tables}
+        isItemEqual={sameIgnoringLayout}
+        onChange={onReorder}
+        afterChange={noop}
+        renderItem={renderItem}
+      />
+    </Collapse>
+  );
+});
 
 export default function TablesTab() {
   const { tables, addTable, updateTable, setTables } = useDiagram();
@@ -36,6 +66,7 @@ export default function TablesTab() {
   const { t } = useTranslation();
   const { layout } = useLayout();
   const { setSaveState } = useSaveState();
+  const stableTables = useLayoutStable(tables);
 
   const actionsRef = useRef(null);
   actionsRef.current = {
@@ -94,10 +125,38 @@ export default function TablesTab() {
     [onToggleHidden, onLocate, onOpenRelated, onFocus],
   );
 
+  const onActiveChange = useCallback(
+    (k) =>
+      setSelectedElement((prev) => ({
+        ...prev,
+        open: true,
+        id: k[0],
+        element: ObjectType.TABLE,
+      })),
+    [setSelectedElement],
+  );
+
+  const onReorder = useCallback(
+    (newItems) => {
+      const ids = newItems.map((item) => item.id);
+      setTables((prev) => {
+        const byId = new Map(prev.map((t) => [t.id, t]));
+        return ids.map((id) => byId.get(id));
+      });
+      setSaveState(State.SAVING);
+    },
+    [setTables, setSaveState],
+  );
+
+  const activeKey =
+    selectedElement.open && selectedElement.element === ObjectType.TABLE
+      ? `${selectedElement.id}`
+      : "";
+
   return (
     <>
       <div className="flex gap-2">
-        <SearchBar tables={tables} />
+        <SearchBar tables={stableTables} />
         <div>
           <Button
             block
@@ -115,33 +174,13 @@ export default function TablesTab() {
       {tables.length === 0 ? (
         <Empty title={t("no_tables")} text={t("no_tables_text")} />
       ) : (
-        <Collapse
-          activeKey={
-            selectedElement.open && selectedElement.element === ObjectType.TABLE
-              ? `${selectedElement.id}`
-              : ""
-          }
-          keepDOM={false}
-          lazyRender
-          onChange={(k) =>
-            setSelectedElement((prev) => ({
-              ...prev,
-              open: true,
-              id: k[0],
-              element: ObjectType.TABLE,
-            }))
-          }
-          accordion
-        >
-          <SortableList
-            keyPrefix="tables-tab"
-            items={tables}
-            isItemEqual={sameIgnoringLayout}
-            onChange={(newTables) => setTables(newTables)}
-            afterChange={() => setSaveState(State.SAVING)}
-            renderItem={renderItem}
-          />
-        </Collapse>
+        <TablesList
+          tables={stableTables}
+          activeKey={activeKey}
+          onActiveChange={onActiveChange}
+          onReorder={onReorder}
+          renderItem={renderItem}
+        />
       )}
     </>
   );
