@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { Button, ButtonGroup, Modal, Tag } from "@douyinfe/semi-ui";
+import { IconMaximize, IconMinimize } from "@douyinfe/semi-icons";
 import { useTranslation } from "react-i18next";
 import { useDiagram, useSettings } from "../../hooks";
 import { FOCUS_DEPTHS, relatedSubgraph } from "../../utils/relatedTables";
+import { radialLayout } from "../../utils/radialLayout";
 import RelatedDiagram from "./RelatedDiagram";
 
 export function RelatedTablesModal({ rootId, onClose, onFocus }) {
@@ -17,6 +19,7 @@ export function RelatedTablesModal({ rootId, onClose, onFocus }) {
   );
 
   const [depth, setDepth] = useState(1);
+  const [fullScreen, setFullScreen] = useState(false);
   const [prevRootId, setPrevRootId] = useState(rootId);
   if (prevRootId !== rootId) {
     setPrevRootId(rootId);
@@ -37,6 +40,17 @@ export function RelatedTablesModal({ rootId, onClose, onFocus }) {
     [tables, relationships, rootId, rootTable, depth],
   );
 
+  const arrangedTables = useMemo(
+    () =>
+      radialLayout(
+        subgraph.tables,
+        subgraph.relationships,
+        rootId,
+        settings?.showComments,
+      ),
+    [subgraph, rootId, settings?.showComments],
+  );
+
   if (!rootId || !rootTable) return null;
 
   const title = t("related_title", { name: rootTable.name });
@@ -50,9 +64,10 @@ export function RelatedTablesModal({ rootId, onClose, onFocus }) {
       onCancel={onClose}
       footer={null}
       width="80vw"
+      fullScreen={fullScreen}
       title={title}
       bodyStyle={{
-        height: "65vh",
+        height: fullScreen ? "calc(100vh - 90px)" : "65vh",
         display: "flex",
         flexDirection: "column",
         gap: "12px",
@@ -88,6 +103,22 @@ export function RelatedTablesModal({ rootId, onClose, onFocus }) {
         <div className="flex items-center gap-2">
           <Button
             size="small"
+            type="tertiary"
+            icon={fullScreen ? <IconMinimize /> : <IconMaximize />}
+            onClick={() => setFullScreen((v) => !v)}
+            aria-pressed={fullScreen}
+            aria-label={
+              fullScreen
+                ? t("related_exit_fullscreen")
+                : t("related_fullscreen")
+            }
+          >
+            {fullScreen
+              ? t("related_exit_fullscreen")
+              : t("related_fullscreen")}
+          </Button>
+          <Button
+            size="small"
             theme="solid"
             type="primary"
             onClick={() => onFocus?.(rootId, depth)}
@@ -107,7 +138,7 @@ export function RelatedTablesModal({ rootId, onClose, onFocus }) {
 
       <div className="flex-1 min-h-0 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
         <RelatedDiagram
-          tables={subgraph.tables}
+          tables={arrangedTables}
           relationships={subgraph.relationships}
           rootId={rootId}
           showComments={settings?.showComments}

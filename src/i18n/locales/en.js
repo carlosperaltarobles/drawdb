@@ -529,6 +529,8 @@ const en = {
     related_table_count_other: "{{count}} tables",
     related_no_relationships: "This table has no relationships",
     related_focus_to_edit: "Focus on canvas to edit",
+    related_fullscreen: "Full screen",
+    related_exit_fullscreen: "Exit full screen",
     related_hidden_badge: "Hidden in diagram",
     related_root_deleted: "The table in the related view was deleted",
     focus_bar_label: "Focused: {{name}}",
