@@ -1,3 +1,4 @@
+import { useCallback, useRef } from "react";
 import { Collapse, Button } from "@douyinfe/semi-ui";
 import {
   IconEyeOpened,
@@ -18,6 +19,7 @@ import {
 } from "../../../hooks";
 import useLocateTable from "../../../hooks/useLocateTable";
 import { Action, ObjectType, State } from "../../../data/constants";
+import { sameIgnoringLayout } from "../../../utils/layoutFields";
 import { useTranslation } from "react-i18next";
 import { DragHandle } from "../../SortableList/DragHandle";
 import { SortableList } from "../../SortableList/SortableList";
@@ -26,12 +28,71 @@ import Empty from "../Empty";
 import TableInfo from "./TableInfo";
 
 export default function TablesTab() {
-  const { tables, addTable, setTables } = useDiagram();
+  const { tables, addTable, updateTable, setTables } = useDiagram();
   const { selectedElement, setSelectedElement } = useSelect();
-  const { includeTable } = useFocus();
+  const { setUndoStack, setRedoStack } = useUndoRedo();
+  const { includeTable, openRelated, startFocus } = useFocus();
+  const locate = useLocateTable();
   const { t } = useTranslation();
   const { layout } = useLayout();
   const { setSaveState } = useSaveState();
+
+  const actionsRef = useRef(null);
+  actionsRef.current = {
+    updateTable,
+    setUndoStack,
+    setRedoStack,
+    openRelated,
+    startFocus,
+    locate,
+    t,
+  };
+
+  const onToggleHidden = useCallback((table) => {
+    const { updateTable, setUndoStack, setRedoStack, t } = actionsRef.current;
+    setUndoStack((prev) => [
+      ...prev,
+      {
+        action: Action.EDIT,
+        element: ObjectType.TABLE,
+        component: "self",
+        tid: table.id,
+        undo: { hidden: table.hidden },
+        redo: { hidden: !table.hidden },
+        message: t("edit_table", {
+          tableName: table.name,
+          extra: "[hidden]",
+        }),
+      },
+    ]);
+    setRedoStack([]);
+    updateTable(table.id, { hidden: !table.hidden });
+  }, []);
+
+  const onLocate = useCallback((id) => {
+    actionsRef.current.locate(id);
+  }, []);
+
+  const onOpenRelated = useCallback((id) => {
+    actionsRef.current.openRelated(id);
+  }, []);
+
+  const onFocus = useCallback((id) => {
+    actionsRef.current.startFocus(id, 1);
+  }, []);
+
+  const renderItem = useCallback(
+    (item) => (
+      <TableListItem
+        table={item}
+        onToggleHidden={onToggleHidden}
+        onLocate={onLocate}
+        onOpenRelated={onOpenRelated}
+        onFocus={onFocus}
+      />
+    ),
+    [onToggleHidden, onLocate, onOpenRelated, onFocus],
+  );
 
   return (
     <>
@@ -75,9 +136,10 @@ export default function TablesTab() {
           <SortableList
             keyPrefix="tables-tab"
             items={tables}
+            isItemEqual={sameIgnoringLayout}
             onChange={(newTables) => setTables(newTables)}
             afterChange={() => setSaveState(State.SAVING)}
-            renderItem={(item) => <TableListItem table={item} />}
+            renderItem={renderItem}
           />
         </Collapse>
       )}
@@ -85,34 +147,20 @@ export default function TablesTab() {
   );
 }
 
-function TableListItem({ table }) {
+function TableListItem({
+  table,
+  onToggleHidden,
+  onLocate,
+  onOpenRelated,
+  onFocus,
+}) {
   const { layout } = useLayout();
-  const { updateTable } = useDiagram();
-  const { setUndoStack, setRedoStack } = useUndoRedo();
   const { settings } = useSettings();
-  const { openRelated, startFocus } = useFocus();
-  const locate = useLocateTable();
   const { t } = useTranslation();
 
   const toggleTableVisibility = (e) => {
     e.stopPropagation();
-    setUndoStack((prev) => [
-      ...prev,
-      {
-        action: Action.EDIT,
-        element: ObjectType.TABLE,
-        component: "self",
-        tid: table.id,
-        undo: { hidden: table.hidden },
-        redo: { hidden: !table.hidden },
-        message: t("edit_table", {
-          tableName: table.name,
-          extra: "[hidden]",
-        }),
-      },
-    ]);
-    setRedoStack([]);
-    updateTable(table.id, { hidden: !table.hidden });
+    onToggleHidden(table);
   };
 
   return (
@@ -146,7 +194,7 @@ function TableListItem({ table }) {
               aria-label={t("locate_in_diagram")}
               onClick={(e) => {
                 e.stopPropagation();
-                locate(table.id);
+                onLocate(table.id);
               }}
               icon={<IconMapPinStroked />}
             />
@@ -158,7 +206,7 @@ function TableListItem({ table }) {
               aria-label={t("view_related")}
               onClick={(e) => {
                 e.stopPropagation();
-                openRelated(table.id);
+                onOpenRelated(table.id);
               }}
               icon={<IconBranch />}
             />
@@ -170,7 +218,7 @@ function TableListItem({ table }) {
               aria-label={t("focus_on_canvas")}
               onClick={(e) => {
                 e.stopPropagation();
-                startFocus(table.id, 1);
+                onFocus(table.id);
               }}
               icon={<IconFilter />}
             />
