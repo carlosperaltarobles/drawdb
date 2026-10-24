@@ -1,6 +1,12 @@
 import { Collapse, Button } from "@douyinfe/semi-ui";
-import { IconEyeOpened, IconEyeClosed } from "@douyinfe/semi-icons";
-import { IconPlus } from "@douyinfe/semi-icons";
+import {
+  IconEyeOpened,
+  IconEyeClosed,
+  IconPlus,
+  IconMapPinStroked,
+  IconBranch,
+  IconFilter,
+} from "@douyinfe/semi-icons";
 import {
   useSelect,
   useDiagram,
@@ -8,7 +14,9 @@ import {
   useLayout,
   useUndoRedo,
   useSettings,
+  useFocus,
 } from "../../../hooks";
+import useLocateTable from "../../../hooks/useLocateTable";
 import { Action, ObjectType, State } from "../../../data/constants";
 import { useTranslation } from "react-i18next";
 import { DragHandle } from "../../SortableList/DragHandle";
@@ -20,6 +28,7 @@ import TableInfo from "./TableInfo";
 export default function TablesTab() {
   const { tables, addTable, setTables } = useDiagram();
   const { selectedElement, setSelectedElement } = useSelect();
+  const { includeTable } = useFocus();
   const { t } = useTranslation();
   const { layout } = useLayout();
   const { setSaveState } = useSaveState();
@@ -32,7 +41,10 @@ export default function TablesTab() {
           <Button
             block
             icon={<IconPlus />}
-            onClick={() => addTable()}
+            onClick={() => {
+              const id = addTable();
+              includeTable(id);
+            }}
             disabled={layout.readOnly}
           >
             {t("add_table")}
@@ -78,6 +90,8 @@ function TableListItem({ table }) {
   const { updateTable } = useDiagram();
   const { setUndoStack, setRedoStack } = useUndoRedo();
   const { settings } = useSettings();
+  const { openRelated, startFocus } = useFocus();
+  const locate = useLocateTable();
   const { t } = useTranslation();
 
   const toggleTableVisibility = (e) => {
@@ -121,6 +135,45 @@ function TableListItem({ table }) {
                 </div>
               )}
             </div>
+            <Button
+              size="small"
+              theme="borderless"
+              type="tertiary"
+              disabled={Boolean(table.hidden)}
+              title={
+                table.hidden ? t("locate_hidden_table") : t("locate_in_diagram")
+              }
+              aria-label={t("locate_in_diagram")}
+              onClick={(e) => {
+                e.stopPropagation();
+                locate(table.id);
+              }}
+              icon={<IconMapPinStroked />}
+            />
+            <Button
+              size="small"
+              theme="borderless"
+              type="tertiary"
+              title={t("view_related")}
+              aria-label={t("view_related")}
+              onClick={(e) => {
+                e.stopPropagation();
+                openRelated(table.id);
+              }}
+              icon={<IconBranch />}
+            />
+            <Button
+              size="small"
+              theme="borderless"
+              type="tertiary"
+              title={t("focus_on_canvas")}
+              aria-label={t("focus_on_canvas")}
+              onClick={(e) => {
+                e.stopPropagation();
+                startFocus(table.id, 1);
+              }}
+              icon={<IconFilter />}
+            />
             <Button
               size="small"
               theme="borderless"
