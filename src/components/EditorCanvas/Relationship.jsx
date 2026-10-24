@@ -1,6 +1,7 @@
 import {
   memo,
   useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -9,7 +10,8 @@ import {
 } from "react";
 import { Cardinality, ObjectType, Tab } from "../../data/constants";
 import { calcPath, calcCompositePath } from "../../utils/calcPath";
-import { useSettings, useLayout, useSelect } from "../../hooks";
+import { useSettings, useLayout } from "../../hooks";
+import { SelectActionsContext } from "../../context/SelectContext";
 import { useTranslation } from "react-i18next";
 import { SideSheet } from "@douyinfe/semi-ui";
 import RelationshipInfo from "../EditorSidePanel/RelationshipsTab/RelationshipInfo";
@@ -29,10 +31,11 @@ export default memo(function Relationship({
   startTable,
   endTable,
   relationships,
+  editOpen = false,
   dimmed = false,
 }) {
   const { layout } = useLayout();
-  const { selectedElement, setSelectedElement } = useSelect();
+  const { setSelectedElement } = useContext(SelectActionsContext);
   const { t } = useTranslation();
 
   const edit = useCallback(() => {
@@ -63,12 +66,7 @@ export default memo(function Relationship({
       <SideSheet
         title={t("edit")}
         size="small"
-        visible={
-          selectedElement.element === ObjectType.RELATIONSHIP &&
-          selectedElement.id === data.id &&
-          selectedElement.open &&
-          !layout.sidebar
-        }
+        visible={editOpen}
         onCancel={() => {
           setSelectedElement((prev) => ({
             ...prev,
