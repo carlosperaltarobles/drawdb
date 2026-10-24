@@ -10,6 +10,7 @@ import SettingsContextProvider from "../context/SettingsContext";
 import SaveStateContextProvider from "../context/SaveStateContext";
 import EnumsContextProvider from "../context/EnumsContext";
 import ViewsContextProvider from "../context/ViewsContext";
+import FocusContextProvider from "../context/FocusContext";
 import WorkSpace from "../components/Workspace";
 import { useThemedPage } from "../hooks";
 
@@ -120,8 +121,10 @@ function ProjectContexts({ projectId, children }) {
                         <ViewsContextProvider>
                           <TablesContextProvider>
                             <SaveStateContextProvider>
-                              <CollabBridge />
-                              <WorkSpace forcedDiagramId={projectId} />
+                              <FocusContextProvider>
+                                <CollabBridge />
+                                <WorkSpace forcedDiagramId={projectId} />
+                              </FocusContextProvider>
                             </SaveStateContextProvider>
                           </TablesContextProvider>
                         </ViewsContextProvider>
