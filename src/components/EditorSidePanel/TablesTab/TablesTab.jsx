@@ -3,7 +3,7 @@ import {
   IconEyeOpened,
   IconEyeClosed,
   IconPlus,
-  IconHelm,
+  IconMapPinStroked,
   IconBranch,
   IconFilter,
 } from "@douyinfe/semi-icons";
@@ -148,7 +148,7 @@ function TableListItem({ table }) {
                 e.stopPropagation();
                 locate(table.id);
               }}
-              icon={<IconHelm />}
+              icon={<IconMapPinStroked />}
             />
             <Button
               size="small"
