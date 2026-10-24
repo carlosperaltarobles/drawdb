@@ -961,6 +961,12 @@ export default function Canvas() {
                 startTable={tablesById.get(e.startTableId)}
                 endTable={tablesById.get(e.endTableId)}
                 relationships={relationships}
+                editOpen={
+                  selectedElement.open &&
+                  !layout.sidebar &&
+                  selectedElement.element === ObjectType.RELATIONSHIP &&
+                  selectedElement.id === e.id
+                }
                 dimmed={
                   dim &&
                   !(
@@ -975,6 +981,12 @@ export default function Canvas() {
                 key={table.id}
                 tableData={table}
                 isSelected={selectedTableIds.has(table.id)}
+                editOpen={
+                  selectedElement.open &&
+                  !layout.sidebar &&
+                  selectedElement.element === ObjectType.TABLE &&
+                  selectedElement.id === table.id
+                }
                 zoom={transform.zoom}
                 simplified={simplifiedTables}
                 database={database}
