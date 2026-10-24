@@ -30,6 +30,7 @@ import {
   useSaveState,
   useCollab,
   useViews,
+  useFocus,
 } from "../../hooks";
 import { useTranslation } from "react-i18next";
 import { useEventListener } from "usehooks-ts";
@@ -76,9 +77,15 @@ export default function Canvas() {
   const { views, updateView } = useViews();
   const { notes, updateNote } = useNotes();
   const { layout } = useLayout();
+  const {
+    focusedIds = null,
+    includeTable,
+    flashTableId = null,
+  } = useFocus() ?? {};
   // Exports draw the whole diagram; otherwise show what the transform frames.
   const exportBounds = layout.exportBounds;
   const exporting = exportBounds !== null;
+  const dim = !exporting && focusedIds !== null;
   const viewBox = useMemo(
     () =>
       exportBounds
@@ -261,6 +268,7 @@ export default function Canvas() {
 
     tables.forEach((table) => {
       if (table.locked) return;
+      if (dim && !focusedIds.has(table.id)) return;
 
       const element = {
         id: table.id,
@@ -279,69 +287,71 @@ export default function Canvas() {
       }
     });
 
-    views.forEach((view) => {
-      if (view.locked) return;
+    if (!dim) {
+      views.forEach((view) => {
+        if (view.locked) return;
 
-      const element = {
-        id: view.id,
-        type: ObjectType.VIEW,
-        currentCoords: { x: view.x, y: view.y },
-        initialCoords: { x: view.x, y: view.y },
-      };
-      const viewRect = {
-        x: view.x,
-        y: view.y,
-        width: getViewWidth(view),
-        height: getViewHeight(
-          view,
-          resolveViewColumns(view, tables),
-          settings.showComments,
-        ),
-      };
-      if (shouldAddElement(viewRect, element)) {
-        elements.push(element);
-      }
-    });
+        const element = {
+          id: view.id,
+          type: ObjectType.VIEW,
+          currentCoords: { x: view.x, y: view.y },
+          initialCoords: { x: view.x, y: view.y },
+        };
+        const viewRect = {
+          x: view.x,
+          y: view.y,
+          width: getViewWidth(view),
+          height: getViewHeight(
+            view,
+            resolveViewColumns(view, tables),
+            settings.showComments,
+          ),
+        };
+        if (shouldAddElement(viewRect, element)) {
+          elements.push(element);
+        }
+      });
 
-    areas.forEach((area) => {
-      if (area.locked) return;
+      areas.forEach((area) => {
+        if (area.locked) return;
 
-      const element = {
-        id: area.id,
-        type: ObjectType.AREA,
-        currentCoords: { x: area.x, y: area.y },
-        initialCoords: { x: area.x, y: area.y },
-      };
-      const areaRect = {
-        x: area.x,
-        y: area.y,
-        width: area.width,
-        height: area.height,
-      };
-      if (shouldAddElement(areaRect, element)) {
-        elements.push(element);
-      }
-    });
+        const element = {
+          id: area.id,
+          type: ObjectType.AREA,
+          currentCoords: { x: area.x, y: area.y },
+          initialCoords: { x: area.x, y: area.y },
+        };
+        const areaRect = {
+          x: area.x,
+          y: area.y,
+          width: area.width,
+          height: area.height,
+        };
+        if (shouldAddElement(areaRect, element)) {
+          elements.push(element);
+        }
+      });
 
-    notes.forEach((note) => {
-      if (note.locked) return;
+      notes.forEach((note) => {
+        if (note.locked) return;
 
-      const element = {
-        id: note.id,
-        type: ObjectType.NOTE,
-        currentCoords: { x: note.x, y: note.y },
-        initialCoords: { x: note.x, y: note.y },
-      };
-      const noteRect = {
-        x: note.x,
-        y: note.y,
-        width: note.width ?? noteWidth,
-        height: note.height,
-      };
-      if (shouldAddElement(noteRect, element)) {
-        elements.push(element);
-      }
-    });
+        const element = {
+          id: note.id,
+          type: ObjectType.NOTE,
+          currentCoords: { x: note.x, y: note.y },
+          initialCoords: { x: note.x, y: note.y },
+        };
+        const noteRect = {
+          x: note.x,
+          y: note.y,
+          width: note.width ?? noteWidth,
+          height: note.height,
+        };
+        if (shouldAddElement(noteRect, element)) {
+          elements.push(element);
+        }
+      });
+    }
 
     if (bulkSelectRect.ctrlKey || bulkSelectRect.metaKey) {
       setBulkSelectedElements([...bulkSelectedElements, ...elements]);
@@ -826,6 +836,9 @@ export default function Canvas() {
     delete newRelationship.endX;
     delete newRelationship.endY;
     addRelationship(newRelationship);
+    if (focusedIds !== null) {
+      includeTable?.(hoveredTable.tableId);
+    }
   };
 
   useEventListener(
@@ -935,6 +948,7 @@ export default function Canvas() {
               <Area
                 key={a.id}
                 data={a}
+                dimmed={dim}
                 setResize={setAreaResize}
                 setInitDimensions={setAreaInitDimensions}
                 onPointerDown={handleElementPointerDown}
@@ -947,6 +961,13 @@ export default function Canvas() {
                 startTable={tablesById.get(e.startTableId)}
                 endTable={tablesById.get(e.endTableId)}
                 relationships={relationships}
+                dimmed={
+                  dim &&
+                  !(
+                    focusedIds.has(e.startTableId) &&
+                    focusedIds.has(e.endTableId)
+                  )
+                }
               />
             ))}
             {rendered.tables.map((table) => (
@@ -958,6 +979,9 @@ export default function Canvas() {
                 simplified={simplifiedTables}
                 database={database}
                 relationships={relationships}
+                dimmed={dim && !focusedIds.has(table.id)}
+                linking={linking}
+                flashing={flashTableId === table.id}
                 setHoveredTable={setHoveredTable}
                 handleGripField={handleGripField}
                 setLinkingLine={setLinkingLine}
@@ -968,6 +992,7 @@ export default function Canvas() {
               <View
                 key={view.id}
                 viewData={view}
+                dimmed={dim}
                 onPointerDown={handleElementPointerDown}
               />
             ))}
@@ -984,6 +1009,7 @@ export default function Canvas() {
               <Note
                 key={n.id}
                 data={n}
+                dimmed={dim}
                 onPointerDown={handleElementPointerDown}
               />
             ))}

@@ -13,6 +13,7 @@ import { useSettings, useLayout, useSelect } from "../../hooks";
 import { useTranslation } from "react-i18next";
 import { SideSheet } from "@douyinfe/semi-ui";
 import RelationshipInfo from "../EditorSidePanel/RelationshipsTab/RelationshipInfo";
+import { DIMMED_OPACITY } from "../../utils/relatedTables";
 import {
   getVisibleFieldIndex,
   getVisibleFields,
@@ -28,6 +29,7 @@ export default memo(function Relationship({
   startTable,
   endTable,
   relationships,
+  dimmed = false,
 }) {
   const { layout } = useLayout();
   const { selectedElement, setSelectedElement } = useSelect();
@@ -55,6 +57,7 @@ export default memo(function Relationship({
         startTable={startTable}
         endTable={endTable}
         relationships={relationships}
+        dimmed={dimmed}
         onEdit={edit}
       />
       <SideSheet
@@ -87,6 +90,7 @@ const RelationshipPath = memo(function RelationshipPath({
   startTable,
   endTable,
   relationships,
+  dimmed = false,
   onEdit,
 }) {
   const { settings } = useSettings();
@@ -224,6 +228,11 @@ const RelationshipPath = memo(function RelationshipPath({
   return (
     <g
       className="select-none group"
+      style={
+        dimmed
+          ? { opacity: DIMMED_OPACITY, pointerEvents: "none" }
+          : undefined
+      }
       onDoubleClick={onEdit}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
