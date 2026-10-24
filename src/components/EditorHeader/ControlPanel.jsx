@@ -72,6 +72,7 @@ import {
   useViews,
   useFullscreen,
   useNavigateWithParams,
+  useFocus,
 } from "../../hooks";
 import { enterFullscreen, exitFullscreen } from "../../utils/fullscreen";
 import { dataURItoBlob } from "../../utils/utils";
@@ -292,6 +293,7 @@ export default function ControlPanel({
   const { undoStack, redoStack, setUndoStack, setRedoStack } = useUndoRedo();
   const { selectedElement, setSelectedElement } = useSelect();
   const { transform, setTransform } = useTransform();
+  const { includeTable } = useFocus();
   const { t, i18n } = useTranslation();
   const { version, gistId, setGistId } = useContext(IdContext);
   const isTemplate = useMatch("/editor/templates/:id");
@@ -977,14 +979,16 @@ export default function ControlPanel({
     switch (selectedElement.element) {
       case ObjectType.TABLE: {
         const copiedTable = tables.find((t) => t.id === selectedElement.id);
+        const id = nanoid();
         addTable({
           table: {
             ...copiedTable,
             x: copiedTable.x + 20,
             y: copiedTable.y + 20,
-            id: nanoid(),
+            id,
           },
         });
+        includeTable(id);
         break;
       }
       case ObjectType.NOTE: {
@@ -2329,7 +2333,10 @@ export default function ControlPanel({
           <Tooltip content={t("add_table")} position="bottom">
             <button
               className="flex items-center py-1 px-2 hover-2 rounded-sm disabled:opacity-50"
-              onClick={() => addTable()}
+              onClick={() => {
+                const id = addTable();
+                includeTable(id);
+              }}
               disabled={layout.readOnly}
             >
               <IconAddTable />
