@@ -9,6 +9,9 @@ import {
   filterSearchOptions,
 } from "../../../utils/tableSearch";
 
+// Big diagrams have thousands of columns; the dropdown is not virtualized.
+const MAX_RESULTS = 100;
+
 export default function SearchBar({ tables }) {
   const { setSelectedElement } = useSelect();
   const { t } = useTranslation();
@@ -21,7 +24,7 @@ export default function SearchBar({ tables }) {
   );
 
   const filteredOptions = useMemo(
-    () => filterSearchOptions(options, query),
+    () => filterSearchOptions(options, query).slice(0, MAX_RESULTS),
     [options, query],
   );
 
