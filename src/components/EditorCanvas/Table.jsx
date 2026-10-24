@@ -33,9 +33,9 @@ import {
   useLayout,
   useSettings,
   useDiagram,
-  useSelect,
   useUndoRedo,
 } from "../../hooks";
+import useLayoutStable from "../../hooks/useLayoutStable";
 import { FocusActionsContext } from "../../context/FocusContext";
 import { DiagramActionsContext } from "../../context/DiagramContext";
 import { SelectActionsContext } from "../../context/SelectContext";
@@ -60,6 +60,7 @@ import SimplifiedTable from "./SimplifiedTable";
 export default memo(function Table({
   tableData,
   isSelected,
+  editOpen = false,
   zoom,
   simplified,
   database,
@@ -275,7 +276,7 @@ export default memo(function Table({
           }
           onDoubleClick={dimmed ? undefined : openEditor}
         />
-        <TableEditSheet tableData={tableData} />
+        <TableEditSheet tableData={tableData} visible={editOpen} />
       </>
     );
   }
@@ -477,6 +478,7 @@ export default memo(function Table({
                     field={e}
                     tableId={tableData.id}
                     database={database}
+                    relationships={relationships}
                   />
                 }
                 position="right"
@@ -508,7 +510,7 @@ export default memo(function Table({
           onEngagedChange={setResizeEngaged}
         />
       )}
-      <TableEditSheet tableData={tableData} />
+      <TableEditSheet tableData={tableData} visible={editOpen} />
     </>
   );
 
@@ -640,25 +642,35 @@ export default memo(function Table({
   }
 });
 
-function FieldSummary({ field: e, tableId, database }) {
-  const { tables, relationships } = useDiagram();
+const FieldSummary = memo(function FieldSummary({
+  field: e,
+  tableId,
+  database,
+  relationships = [],
+}) {
+  const { tables } = useDiagram();
+  const stableTables = useLayoutStable(tables);
   const { t } = useTranslation();
   const resolved = resolveType(database, e.type);
 
-  let matchedEndFieldId = null;
-  const rel = relationships.find((r) => {
-    if (r.startTableId !== tableId) return false;
-    const pair = getRelationshipFields(r).find((p) => p.startFieldId === e.id);
-    if (!pair) return false;
-    matchedEndFieldId = pair.endFieldId;
-    return true;
-  });
-  const refTable = rel && tables.find((tbl) => tbl.id === rel.endTableId);
-  const refField = refTable?.fields.find((f) => f.id === matchedEndFieldId);
-  const reference =
-    refTable && refField
+  const reference = useMemo(() => {
+    let matchedEndFieldId = null;
+    const rel = relationships.find((r) => {
+      if (r.startTableId !== tableId) return false;
+      const pair = getRelationshipFields(r).find(
+        (p) => p.startFieldId === e.id,
+      );
+      if (!pair) return false;
+      matchedEndFieldId = pair.endFieldId;
+      return true;
+    });
+    const refTable =
+      rel && stableTables.find((tbl) => tbl.id === rel.endTableId);
+    const refField = refTable?.fields.find((f) => f.id === matchedEndFieldId);
+    return refTable && refField
       ? { tableName: refTable.name, fieldName: refField.name }
       : null;
+  }, [e.id, relationships, stableTables, tableId]);
 
   return (
     <div className="popover-theme">
@@ -723,23 +735,17 @@ function FieldSummary({ field: e, tableId, database }) {
       </p>
     </div>
   );
-}
+});
 
-function TableEditSheet({ tableData }) {
-  const { layout } = useLayout();
-  const { selectedElement, setSelectedElement } = useSelect();
+function TableEditSheet({ tableData, visible }) {
+  const { setSelectedElement } = useContext(SelectActionsContext);
   const { t } = useTranslation();
 
   return (
     <SideSheet
       title={t("edit")}
       size="small"
-      visible={
-        selectedElement.element === ObjectType.TABLE &&
-        selectedElement.id === tableData.id &&
-        selectedElement.open &&
-        !layout.sidebar
-      }
+      visible={visible}
       onCancel={() =>
         setSelectedElement((prev) => ({
           ...prev,

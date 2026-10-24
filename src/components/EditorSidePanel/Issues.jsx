@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { Collapse, Badge } from "@douyinfe/semi-ui";
-import { arrayIsEqual } from "../../utils/utils";
 import { getIssues } from "../../utils/issues";
 import {
   useEnums,
@@ -9,6 +8,7 @@ import {
   useTypes,
   useViews,
 } from "../../hooks";
+import useLayoutStable from "../../hooks/useLayoutStable";
 import { useTranslation } from "react-i18next";
 
 export default function Issues({ dbmlProblems = [] }) {
@@ -18,26 +18,20 @@ export default function Issues({ dbmlProblems = [] }) {
   const { enums } = useEnums();
   const { views } = useViews();
   const { tables, relationships, database } = useDiagram();
-  const [issues, setIssues] = useState([]);
+  const stableTables = useLayoutStable(tables);
 
-  useEffect(() => {
-    const findIssues = async () => {
-      const newIssues = getIssues({
-        tables: tables,
-        relationships: relationships,
-        types: types,
-        database: database,
-        enums: enums,
-        views: views,
-      });
-
-      if (!arrayIsEqual(newIssues, issues)) {
-        setIssues(newIssues);
-      }
-    };
-
-    findIssues();
-  }, [tables, relationships, issues, types, database, enums, views]);
+  const issues = useMemo(
+    () =>
+      getIssues({
+        tables: stableTables,
+        relationships,
+        types,
+        database,
+        enums,
+        views,
+      }),
+    [stableTables, relationships, types, database, enums, views],
+  );
 
   const badgeCount = settings.strictMode
     ? dbmlProblems.length || null

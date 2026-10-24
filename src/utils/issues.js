@@ -1,5 +1,6 @@
 import { dbToTypes } from "../data/datatypes";
 import i18n from "../i18n/i18n";
+import { findCircularTableIds } from "./circularTables";
 import { isFunction } from "./utils";
 
 function checkDefault(field, database) {
@@ -305,33 +306,14 @@ export function getIssues(diagram) {
     }
   });
 
-  const visitedTables = new Set();
-
-  function checkCircularRelationships(tableId, visited = []) {
-    if (visited.includes(tableId)) {
-      issues.push(
-        i18n.t("circular_dependency", {
-          refName: diagram.tables.find((t) => t.id === tableId)?.name,
-        }),
-      );
-      return;
-    }
-
-    visited.push(tableId);
-    visitedTables.add(tableId);
-
-    diagram.relationships.forEach((r) => {
-      if (r.startTableId === tableId && r.startTableId !== r.endTableId) {
-        checkCircularRelationships(r.endTableId, [...visited]);
-      }
-    });
-  }
-
-  diagram.tables.forEach((table) => {
-    if (!visitedTables.has(table.id)) {
-      checkCircularRelationships(table.id);
-    }
-  });
+  const tablesById = new Map(diagram.tables.map((t) => [t.id, t]));
+  findCircularTableIds(diagram.tables, diagram.relationships).forEach((id) =>
+    issues.push(
+      i18n.t("circular_dependency", {
+        refName: tablesById.get(id)?.name,
+      }),
+    ),
+  );
 
   return issues;
 }
