@@ -21,6 +21,7 @@ const en = {
       "This replaces the diagram for everyone. A copy of the current state will be saved.",
     history_restored_by: "{{name}} restored the version from {{time}}",
     history_restore_failed: "Could not restore the version",
+    history_preview_failed: "Could not load that version",
     today: "Today",
     yesterday: "Yesterday",
     history_save_version: "Save version",

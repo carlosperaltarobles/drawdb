@@ -15,6 +15,7 @@ import * as history from "../api/history";
 import { useAuth, useSettings } from "../hooks";
 import { fitTransform } from "../utils/fitView";
 import { formatHistoryTime } from "./PreviewBanner";
+import { createPreviewLoader } from "./previewLoader";
 import { DOC_KEYS, ProjectSession } from "./ProjectSession";
 import * as viewStorage from "./viewStorage";
 
@@ -120,11 +121,16 @@ export default function ProjectCollabProvider({ projectId, children }) {
       observe: session.observe,
       sendAwareness: session.sendAwareness,
       canWrite: session.canWrite,
-      previewSnapshot: async (snapshotId) => {
-        const { diagram, ...meta } = await history.get(projectId, snapshotId);
-        const doc = normalizePreviewDoc(diagram, session.editorDoc);
-        session.startPreview(doc, meta);
-      },
+      previewSnapshot: createPreviewLoader({
+        fetch: (snapshotId) => history.get(projectId, snapshotId),
+        start: ({ diagram, ...meta }) =>
+          session.startPreview(
+            normalizePreviewDoc(diagram, session.editorDoc),
+            meta,
+          ),
+        onError: () =>
+          Toast.error(callbacks.current.t("history_preview_failed")),
+      }),
       endPreview: session.endPreview,
     };
   }, [session, projectId, user.id, settings.showComments]);

@@ -21,6 +21,7 @@ const es = {
       "Esto reemplaza el diagrama para todos. Se guardará una copia del estado actual.",
     history_restored_by: "{{name}} restauró la versión de {{time}}",
     history_restore_failed: "No se pudo restaurar la versión",
+    history_preview_failed: "No se pudo cargar esa versión",
     today: "Hoy",
     yesterday: "Ayer",
     history_save_version: "Guardar versión",
