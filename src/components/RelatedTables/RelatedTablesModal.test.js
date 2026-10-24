@@ -8,10 +8,17 @@ vi.hoisted(() => {
 
 vi.mock("@douyinfe/semi-icons", () => ({
   IconKeyStroked: () => createElement("span", { "data-icon": "key" }),
+  IconMaximize: () => createElement("span", { "data-icon": "maximize" }),
+  IconMinimize: () => createElement("span", { "data-icon": "minimize" }),
 }));
 
 vi.mock("@douyinfe/semi-ui", () => ({
-  Button: ({ children, onClick, "aria-label": ariaLabel, "aria-pressed": ariaPressed }) =>
+  Button: ({
+    children,
+    onClick,
+    "aria-label": ariaLabel,
+    "aria-pressed": ariaPressed,
+  }) =>
     createElement(
       "button",
       { onClick, "aria-label": ariaLabel, "aria-pressed": ariaPressed },
@@ -125,6 +132,7 @@ describe("RelatedTablesModal & RelatedDiagram", () => {
     expect(html).toContain("related_depth_all");
     expect(html).toContain("related_table_count:2");
     expect(html).toContain("related_focus_to_edit");
+    expect(html).toContain("related_fullscreen");
     expect(html).toContain("pedidos");
     expect(html).toContain("clientes");
     expect(html).not.toContain("aislada");

@@ -534,6 +534,8 @@ const es = {
     related_table_count_other: "{{count}} tablas",
     related_no_relationships: "Esta tabla no tiene relaciones",
     related_focus_to_edit: "Enfocar en el lienzo para editar",
+    related_fullscreen: "Pantalla completa",
+    related_exit_fullscreen: "Salir de pantalla completa",
     related_hidden_badge: "Oculta en el diagrama",
     related_root_deleted: "La tabla de la vista de relacionadas se eliminó",
     focus_bar_label: "Enfocado: {{name}}",
