@@ -6,25 +6,48 @@ vi.hoisted(() => {
   globalThis.DOMRect ??= class DOMRect {};
 });
 
+const modalConfirmMock = vi.fn();
+const toastErrorMock = vi.fn();
+const toastInfoMock = vi.fn();
+
 vi.mock("@douyinfe/semi-ui", () => ({
   Button: ({ children, onClick }) =>
     createElement("button", { onClick }, children),
   Input: () => null,
-  Modal: ({ visible, title, children }) =>
-    visible ? createElement("div", { "data-modal": title }, children) : null,
+  Modal: Object.assign(
+    ({ visible, title, children }) =>
+      visible ? createElement("div", { "data-modal": title }, children) : null,
+    { confirm: (...args) => modalConfirmMock(...args) },
+  ),
   Select: () => null,
-  Toast: { error: vi.fn(), success: vi.fn() },
+  Toast: {
+    error: (...args) => toastErrorMock(...args),
+    info: (...args) => toastInfoMock(...args),
+    success: vi.fn(),
+  },
+}));
+
+const restoreMock = vi.fn();
+vi.mock("../api/history", () => ({
+  restore: (...args) => restoreMock(...args),
+  get: vi.fn(),
 }));
 
 vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key) => key }),
+  useTranslation: () => ({
+    t: (key, opts) => (opts?.time ? `${key}:${opts.time}` : key),
+  }),
 }));
 
 import { AuthContext } from "../context/AuthContext";
 import { CanvasContext } from "../context/CanvasContext";
 import { TransformContext } from "../context/TransformContext";
-import { ProjectCollabContext } from "./ProjectCollabProvider";
+import {
+  ProjectCollabContext,
+  normalizePreviewDoc,
+} from "./ProjectCollabProvider";
 import PresenceBar, { getInitials } from "./PresenceBar";
+import PreviewBanner, { formatHistoryTime } from "./PreviewBanner";
 import RemoteCursors, { normalizeLinking } from "./RemoteCursors";
 import { throttle } from "./throttle";
 
@@ -188,5 +211,112 @@ describe("RemoteCursors & PresenceBar", () => {
     expect(editorHtml).toContain("bg-amber-500");
     expect(editorHtml).not.toContain("<button>members</button>");
     expect(editorHtml).not.toContain("presence-overflow");
+  });
+
+  it("RemoteCursors renders nothing when preview is active", () => {
+    const awareness = new Map([
+      ["u1", { name: "Ana", color: "#2563eb", cursor: { x: 10, y: 20 } }],
+    ]);
+    const canvasValue = {
+      pointer: { spaces: { diagram: { x: 0, y: 0 } } },
+      coords: { toScreenSpace: (pt) => pt },
+    };
+    const html = renderToStaticMarkup(
+      createElement(
+        ProjectCollabContext.Provider,
+        {
+          value: {
+            awareness,
+            sendAwareness: vi.fn(),
+            preview: { id: "s1", createdAt: "2026-10-23T12:40:00.000Z" },
+          },
+        },
+        createElement(
+          TransformContext.Provider,
+          { value: { transform: { zoom: 1, pan: { x: 0, y: 0 } } } },
+          createElement(
+            CanvasContext.Provider,
+            { value: canvasValue },
+            createElement(RemoteCursors),
+          ),
+        ),
+      ),
+    );
+    expect(html).toBe("");
+  });
+
+  it("PreviewBanner formats dates, respects role permissions, and confirms restore", async () => {
+    const now = new Date("2026-10-23T15:00:00.000Z");
+    const sameDayIso = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      12,
+      40,
+    ).toISOString();
+    const otherDayIso = new Date(now.getFullYear(), 9, 20, 9, 5).toISOString();
+
+    expect(formatHistoryTime(sameDayIso, now)).toBe("12:40");
+    expect(formatHistoryTime(otherDayIso, now)).toBe("20/10 09:05");
+
+    expect(
+      normalizePreviewDoc(
+        { tables: [{ id: "t1" }] },
+        { database: "postgresql", sqlHeader: "-- hdr" },
+      ),
+    ).toEqual({
+      tables: [{ id: "t1" }],
+      relationships: [],
+      notes: [],
+      areas: [],
+      views: [],
+      enums: [],
+      types: [],
+      database: "postgresql",
+      sqlHeader: "-- hdr",
+    });
+
+    const emptyHtml = renderToStaticMarkup(
+      createElement(
+        ProjectCollabContext.Provider,
+        { value: { preview: null, role: "editor" } },
+        createElement(PreviewBanner),
+      ),
+    );
+    expect(emptyHtml).toBe("");
+
+    const viewerHtml = renderToStaticMarkup(
+      createElement(
+        ProjectCollabContext.Provider,
+        {
+          value: {
+            projectId: "p1",
+            role: "viewer",
+            preview: { id: "s1", createdAt: sameDayIso },
+            endPreview: vi.fn(),
+          },
+        },
+        createElement(PreviewBanner),
+      ),
+    );
+    expect(viewerHtml).toContain("history_preview_banner:");
+    expect(viewerHtml).toContain("history_back_to_current");
+    expect(viewerHtml).not.toContain("history_restore");
+
+    const editorHtml = renderToStaticMarkup(
+      createElement(
+        ProjectCollabContext.Provider,
+        {
+          value: {
+            projectId: "p1",
+            role: "editor",
+            preview: { id: "s1", createdAt: sameDayIso },
+            endPreview: vi.fn(),
+          },
+        },
+        createElement(PreviewBanner),
+      ),
+    );
+    expect(editorHtml).toContain("history_restore");
   });
 });

@@ -2401,16 +2401,17 @@ export default function ControlPanel({
             </button>
           </Tooltip>
           <Divider layout="vertical" margin="8px" />
-          {!extensions.projectMode && (
-            <Tooltip content={t("versions")} position="bottom">
-              <button
-                className="py-1 px-2 hover-2 rounded-sm text-xl -mt-0.5"
-                onClick={() => setSidesheet(SIDESHEET.VERSIONS)}
-              >
-                <i className="fa-solid fa-code-branch" />
-              </button>
-            </Tooltip>
-          )}
+          <Tooltip
+            content={t(extensions.projectMode ? "history" : "versions")}
+            position="bottom"
+          >
+            <button
+              className="py-1 px-2 hover-2 rounded-sm text-xl -mt-0.5"
+              onClick={() => setSidesheet(SIDESHEET.VERSIONS)}
+            >
+              <i className="fa-solid fa-code-branch" />
+            </button>
+          </Tooltip>
           <Divider layout="vertical" margin="8px" />
           <Tooltip content={t("theme")} position="bottom">
             <button

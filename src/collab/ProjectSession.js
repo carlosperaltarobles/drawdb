@@ -8,13 +8,14 @@ const sameSlices = (a, b) =>
 
 // Owns one socket/project lifecycle, including work waiting for the next batch.
 export class ProjectSession {
-  constructor({ projectId, socket, onState, onExit }) {
+  constructor({ projectId, socket, onState, onExit, onNotice }) {
     this.projectId = projectId;
     this.socket = socket;
     this.onState = onState;
     this.onExit = onExit;
+    this.onNotice = onNotice;
     this.client = new CollabClient({
-      send: (batch) => socket.emit("ops", batch),
+      send: (batch) => socket.emit("ops", { ...batch, epoch: this.epoch }),
     });
     this.state = {
       status: "connecting",
@@ -22,7 +23,11 @@ export class ProjectSession {
       projectName: "",
       peers: [],
       awareness: new Map(),
+      preview: null,
+      lastRestoredAt: 0,
     };
+    this.preview = null;
+    this.pendingReset = false;
     this.generation = 0;
     this.waiters = [];
     this.listeners = {
@@ -35,6 +40,12 @@ export class ProjectSession {
       ops: (batch) => this.rebase(() => this.client.remote(batch)),
       ack: (batch) => this.rebase(() => this.client.ack(batch)),
       resync: () => this.join(),
+      restored: ({ by, snapshotCreatedAt }) => {
+        this.endPreview();
+        this.update({ lastRestoredAt: Date.now() });
+        this.onNotice?.({ type: "restored", by, snapshotCreatedAt });
+        this.join();
+      },
       role_changed: ({ role }) => {
         this.update({ role });
         this.join();
@@ -120,6 +131,7 @@ export class ProjectSession {
         return;
       }
       const previous = this.editorDoc;
+      this.epoch = result.epoch;
       this.editorDoc = this.client.resetFromSnapshot(result);
       this.snapshotAvailable = true;
       this.update({
@@ -129,7 +141,8 @@ export class ProjectSession {
         peers: result.peers,
         awareness: new Map(),
       });
-      if (this.hydrated) this.apply?.(this.editorDoc, previous, true);
+      if (this.preview) this.pendingReset = true;
+      else if (this.hydrated) this.apply?.(this.editorDoc, previous, true);
       for (const resolve of this.waiters.splice(0)) resolve(this.editorDoc);
     });
   }
@@ -140,11 +153,34 @@ export class ProjectSession {
     this.onExit(reason);
   }
 
+  startPreview = (doc, meta) => {
+    // Send the local edit still waiting for its 50ms batch before going read-only.
+    if (this.localTimer && this.canWrite()) this.client.local(this.editorDoc);
+    const previous = this.preview ? this.preview.doc : this.editorDoc;
+    this.preview = { doc, meta };
+    this.cancelTimers();
+    this.apply?.(doc, previous, false);
+    this.update({ preview: meta });
+  };
+
+  endPreview = () => {
+    if (!this.preview) return;
+    const { doc: previous } = this.preview;
+    const reset = Boolean(this.pendingReset);
+    this.preview = null;
+    this.pendingReset = false;
+    this.apply?.(this.editorDoc, previous, reset);
+    this.update({ preview: null });
+  };
+
   canWrite = () =>
-    this.active &&
-    this.ready &&
-    this.state.status === "online" &&
-    ["admin", "editor"].includes(this.state.role);
+    Boolean(
+      this.active &&
+        this.ready &&
+        !this.preview &&
+        this.state.status === "online" &&
+        ["admin", "editor"].includes(this.state.role),
+    );
 
   waitForSnapshot = () =>
     this.snapshotAvailable
@@ -165,7 +201,13 @@ export class ProjectSession {
   };
 
   observe = (doc) => {
-    if (!this.active || !this.snapshotAvailable || !this.hydrated) return;
+    if (
+      !this.active ||
+      !this.snapshotAvailable ||
+      !this.hydrated ||
+      this.preview
+    )
+      return;
     if (!this.ready) {
       if (sameSlices(doc, this.editorDoc)) {
         this.ready = true;
@@ -200,11 +242,12 @@ export class ProjectSession {
       return;
     }
     this.editorDoc = rebased.doc;
-    if (this.hydrated) this.apply?.(this.editorDoc, previous, false);
+    if (this.hydrated && !this.preview)
+      this.apply?.(this.editorDoc, previous, false);
   }
 
   sendAwareness = (partial) => {
-    if (!this.active || this.state.status !== "online") return;
+    if (!this.active || this.state.status !== "online" || this.preview) return;
     this.pendingAwareness = { ...this.pendingAwareness, ...partial };
     if (!this.awarenessTimer)
       this.awarenessTimer = setTimeout(() => {

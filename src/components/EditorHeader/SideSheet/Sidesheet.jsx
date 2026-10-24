@@ -14,7 +14,7 @@ export default function Sidesheet({ type, title, setTitle, onClose }) {
       case SIDESHEET.TIMELINE:
         return t("timeline");
       case SIDESHEET.VERSIONS:
-        return t("versions");
+        return extensions.projectMode ? t("history") : t("versions");
       default:
         break;
     }

@@ -21,12 +21,15 @@ import ProjectCollabProvider, {
   useProjectCollab,
 } from "../collab/ProjectCollabProvider";
 import CollabBridge from "../collab/CollabBridge";
+import HistoryPanel from "../collab/HistoryPanel";
+import PreviewBanner from "../collab/PreviewBanner";
 import RemoteCursors from "../collab/RemoteCursors";
 import PresenceBar from "../collab/PresenceBar";
 
 const cloudSave = async () => {};
 const canvasLayerSlot = <RemoteCursors />;
 const headerActionsEndSlot = <PresenceBar />;
+const versionsPanelSlot = <HistoryPanel />;
 
 function ProjectWorkspace() {
   const {
@@ -35,6 +38,7 @@ function ProjectWorkspace() {
     status,
     role,
     ready,
+    preview,
     waitForSnapshot,
     prepareCloudDiagram,
     canWrite,
@@ -44,19 +48,22 @@ function ProjectWorkspace() {
     () => ({
       projectMode: true,
       projectName,
-      readOnly: status !== "online" || !ready || role === "viewer",
+      readOnly:
+        status !== "online" || !ready || role === "viewer" || Boolean(preview),
       canWrite,
       cloudLoad: waitForSnapshot,
       prepareCloudDiagram,
       cloudSave,
       "canvas-layer": canvasLayerSlot,
       "header-actions-end": headerActionsEndSlot,
+      "versions-panel": versionsPanelSlot,
     }),
     [
       projectName,
       status,
       role,
       ready,
+      preview,
       waitForSnapshot,
       prepareCloudDiagram,
       canWrite,
@@ -73,6 +80,7 @@ function ProjectWorkspace() {
             {t(status === "offline" ? "project_offline" : "project_connecting")}
           </div>
         )}
+        <PreviewBanner />
       </ProjectContexts>
     ),
     [projectId, status, t],
