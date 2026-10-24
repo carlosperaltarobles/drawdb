@@ -77,7 +77,11 @@ export default function Canvas() {
   const { views, updateView } = useViews();
   const { notes, updateNote } = useNotes();
   const { layout } = useLayout();
-  const { focusedIds = null, includeTable } = useFocus() ?? {};
+  const {
+    focusedIds = null,
+    includeTable,
+    flashTableId = null,
+  } = useFocus() ?? {};
   // Exports draw the whole diagram; otherwise show what the transform frames.
   const exportBounds = layout.exportBounds;
   const exporting = exportBounds !== null;
@@ -977,6 +981,7 @@ export default function Canvas() {
                 relationships={relationships}
                 dimmed={dim && !focusedIds.has(table.id)}
                 linking={linking}
+                flashing={flashTableId === table.id}
                 setHoveredTable={setHoveredTable}
                 handleGripField={handleGripField}
                 setLinkingLine={setLinkingLine}

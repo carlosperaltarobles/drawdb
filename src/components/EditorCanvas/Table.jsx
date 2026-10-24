@@ -35,8 +35,8 @@ import {
   useDiagram,
   useSelect,
   useUndoRedo,
-  useFocus,
 } from "../../hooks";
+import { FocusActionsContext } from "../../context/FocusContext";
 import { DiagramActionsContext } from "../../context/DiagramContext";
 import { SelectActionsContext } from "../../context/SelectContext";
 import TableInfo from "../EditorSidePanel/TablesTab/TableInfo";
@@ -66,6 +66,7 @@ export default memo(function Table({
   relationships,
   dimmed = false,
   linking = false,
+  flashing = false,
   onPointerDown,
   setHoveredTable,
   handleGripField,
@@ -83,8 +84,9 @@ export default memo(function Table({
   const { t } = useTranslation();
   const { setSelectedElement, setBulkSelectedElements } =
     useContext(SelectActionsContext);
-  const { openRelated, startFocus, includeTable, flashTableId } =
-    useFocus() ?? {};
+  // Actions only: reading the focus state here would re-render every table.
+  const { openRelated, startFocus, includeTable } =
+    useContext(FocusActionsContext) ?? {};
 
   const borderColor = useMemo(
     () => (settings.mode === "light" ? "border-zinc-300" : "border-zinc-600"),
@@ -250,7 +252,7 @@ export default memo(function Table({
 
   if (tableData.hidden) return null;
 
-  const isFlashing = flashTableId === tableData.id;
+  const isFlashing = flashing;
   const prefersReducedMotion =
     typeof window !== "undefined" &&
     window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
