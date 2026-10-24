@@ -179,37 +179,77 @@ Tras integrar la oleada 2, Claude ejecuta el script contra el build de producci�
 
 ---
 
-### Task 6 (opcional, solo si Task 5 da FAIL): Lienzo
+### Task 6 (se activó: Task 5 dio FAIL)
+
+**Medición tras Tasks 1–4 (2026-10-24, build de producción, 20 pasos):** p95 entre 133 y 283 ms y tareas largas de hasta 779 ms en todos los gestos. 6 movimientos pasaron de 30,7 s a 2,1 s. Casi todo es render de React. Componentes redibujados **por movimiento** (servidor de desarrollo, zoom 5 %, una tabla):
+
+- `TableEditSheet` ×600 y `SideSheet` ×1351: las 200 hojas de edición ocultas leen `useSelect()`, y `Canvas` llama a `setBulkSelectedElements` en cada `pointermove`.
+- `Relationship` ×255 y `CardinalityLabel` ×1500: también leen `useSelect()`.
+- `Button`/`IconButton` ×2418, `DragHandle` ×600 y `Collapsible` ×603: las filas de la lista lateral se redibujan desde el `Collapse` de Semi y el contexto de dnd-kit cuando `TablesTab` se redibuja, aunque `SortableRow` esté memoizado.
+
+Se divide en dos subtareas con archivos disjuntos, en paralelo (oleada 3). Sigue sin tocar el estado de React del arrastre, la colaboración ni el undo (spec).
+
+#### Task 6a: Lienzo sin suscripción a la selección
 
 **Files:**
 
-- Modify: `src/components/EditorCanvas/Table.jsx`, `src/components/EditorCanvas/Canvas.jsx`
+- Modify: `src/components/EditorCanvas/Canvas.jsx`, `src/components/EditorCanvas/Table.jsx`, `src/components/EditorCanvas/Relationship.jsx`
 
 **Interfaces:**
 
-- Consumes: `sameIgnoringLayout`, `useLayoutStable` (Task 2).
+- `Table` y `Relationship` reciben una nueva prop booleana `editOpen`. `Canvas` la calcula una vez: `selectedElement.open && !layout.sidebar && selectedElement.element === <TABLE|RELATIONSHIP> && selectedElement.id === <id>`.
+- `TableEditSheet({ tableData, visible })` y el `SideSheet` de `Relationship` usan `visible={editOpen}` y toman `setSelectedElement` de `useContext(SelectActionsContext)`, como ya hace `Table`. Ni `Table.jsx` ni `Relationship.jsx` llaman a `useSelect()`.
 
-- [ ] **Step 1:** Perfilar (CPU profile del script o DevTools) para confirmar qué domina tras Tasks 1–3; anotar el top 5 en el ledger.
-- [ ] **Step 2:** Atacar solo lo que el perfil señale, en este orden:
-  - `FieldSummary` y `TableEditSheet` (`Table.jsx`) leen `tables` del contexto: pasarles por props solo lo que usan, o leer `useLayoutStable(tables)`.
-  - `tableBoxes` (`Canvas.jsx`) recalcula `getTableHeight` de todas las tablas: reutilizar la caja anterior de cada tabla cuando `sameIgnoringLayout` y solo actualizar `x/y/w`.
-- [ ] **Step 3:** `npm test && npm run lint` ⇒ PASS; volver a Task 5.
+- [ ] **Step 1:** Aplicar los cambios de «Interfaces». El comportamiento de abrir y cerrar las hojas no cambia: doble clic en una tabla o relación con la barra lateral oculta abre su hoja, y «Cancelar» la cierra.
+- [ ] **Step 2:** `FieldSummary` (`Table.jsx`) deja de leer `tables` y `relationships` del contexto en cada render: recibe por props lo que necesita, o lee `useLayoutStable(tables)` (Task 2).
+- [ ] **Step 3:** `npm test && npm run lint` ⇒ PASS.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/components/EditorCanvas/Table.jsx src/components/EditorCanvas/Canvas.jsx
-git commit -m "perf: el lienzo no recalcula tablas que no cambian"
+git add src/components/EditorCanvas/Canvas.jsx src/components/EditorCanvas/Table.jsx src/components/EditorCanvas/Relationship.jsx
+git commit -m "perf: tablas y relaciones no se redibujan al cambiar la selección"
 ```
+
+#### Task 6b: La lista lateral entera no se redibuja por posición ni selección
+
+**Files:**
+
+- Modify: `src/components/EditorSidePanel/TablesTab/TablesTab.jsx`
+
+**Interfaces:**
+
+- Consumes: `useLayoutStable` (Task 2).
+- Componente interno `TablesList = memo(function TablesList({ tables, activeKey, onActiveChange, onReorder, renderItem }))`. Contiene el `Collapse` y el `SortableList` actuales.
+- `TablesTab` le pasa:
+  - `tables={useLayoutStable(tables)}`;
+  - `activeKey` como string, calculado igual que hoy;
+  - `onActiveChange` y `onReorder` estables (`useCallback`);
+  - el `renderItem` estable que ya existe.
+- `onReorder(newItems)` **no** guarda `newItems` tal cual, porque pueden traer `x/y/width` desactualizados. Reordena las tablas **actuales** según los ids de `newItems`: `setTables(prev => ids.map(id => prev.find(t => t.id === id)))`, o con un `Map`. Después llama a `setSaveState(State.SAVING)`, como hoy.
+- `SearchBar` recibe también la lista estable.
+
+- [ ] **Step 1:** Aplicar los cambios de «Interfaces».
+- [ ] **Step 2:** Revisar contra el código que siguen funcionando: abrir y cerrar una tabla en la lista; reordenar sin que se pierdan posiciones de tablas movidas antes; buscar; añadir y borrar tablas. Describirlo en el resumen.
+- [ ] **Step 3:** `npm test && npm run lint` ⇒ PASS.
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/components/EditorSidePanel/TablesTab/TablesTab.jsx
+git commit -m "perf: la lista lateral no se redibuja al arrastrar en el lienzo"
+```
+
+Después de la oleada 3 se vuelve a Task 5. Si sigue en FAIL, se para y se reporta al dueño con números.
 
 ---
 
 ## Oleadas
 
-| Oleada | Tareas en paralelo                    | Archivos (disjuntos)                                                                                                     |
-| ------ | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| 1      | Task 1, Task 2, Task 4                | `issues.js`, `circularTables*` · `layoutFields*`, `useLayoutStable.js`, `Issues.jsx` · `scripts/perf/*`, `package*.json` |
-| 2      | Task 3                                | `TablesTab.jsx`, `SortableList.jsx`                                                                                      |
-| —      | Task 5 (Claude), Task 6 si hace falta | —                                                                                                                        |
+| Oleada | Tareas en paralelo     | Archivos (disjuntos)                                                                                                     |
+| ------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| 1      | Task 1, Task 2, Task 4 | `issues.js`, `circularTables*` · `layoutFields*`, `useLayoutStable.js`, `Issues.jsx` · `scripts/perf/*`, `package*.json` |
+| 2      | Task 3                 | `TablesTab.jsx`, `SortableList.jsx`                                                                                      |
+| —      | Task 5 (Claude)        | —                                                                                                                        |
+| 3      | Task 6a, Task 6b       | `Canvas.jsx`, `Table.jsx`, `Relationship.jsx` · `TablesTab.jsx`                                                          |
 
 ## Ejecución en paralelo (Cline)
 
