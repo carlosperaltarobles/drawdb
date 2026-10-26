@@ -30,6 +30,7 @@ const es = {
     history_this_week: "Esta semana",
     history_kind_pre_bulk_delete: "Copia previa a borrado masivo",
     history_kind_pre_restore: "Antes de restaurar",
+    history_kind_pre_ai_apply: "Antes de aplicar IA",
     history_named_limit: "Se alcanzó el máximo de 100 versiones con nombre",
     history_load_more: "Cargar más",
     history_rename: "Renombrar",
@@ -542,6 +543,70 @@ const es = {
     focus_exit: "Salir",
     focus_root_deleted:
       "La tabla enfocada se eliminó; se salió del modo enfocado",
+    ai_agent_title: "Asistente IA",
+    ai_toggle_panel: "Asistente IA",
+    ai_private_notice:
+      "Conversación privada para tu usuario en este proyecto. Solo los cambios aceptados se comparten.",
+    ai_viewer_readonly_notice:
+      "Modo lector: puedes analizar y conversar sobre el esquema, pero no aplicar cambios.",
+    ai_model_label: "Modelo",
+    ai_refresh_models: "Actualizar modelos",
+    ai_model_search_placeholder: "Buscar modelo…",
+    ai_models_empty: "No hay modelos disponibles en el catálogo",
+    ai_models_stale: "Catálogo en caché temporal (datos no actualizados)",
+    ai_model_unavailable_notice:
+      "El modelo seleccionado ({{model}}) ya no está disponible. Elige otro modelo para continuar.",
+    ai_model_chat_only:
+      "Este modelo solo admite conversación y análisis; no puede generar propuestas de edición.",
+    ai_model_unknown_capabilities:
+      "Algunas capacidades de este modelo son desconocidas y no están habilitadas para proponer cambios.",
+    ai_model_supports_proposals: "Chat y propuestas",
+    ai_conversation_label: "Conversación",
+    ai_new_conversation: "Nueva conversación",
+    ai_delete_conversation: "Borrar conversación",
+    ai_delete_conversation_confirm:
+      "¿Borrar esta conversación privada y sus propuestas pendientes?",
+    ai_empty_messages:
+      "Haz una pregunta sobre el esquema o solicita una propuesta de cambios.",
+    ai_message_placeholder:
+      "Pregunta sobre el diagrama o pide modificaciones (máx. 8.000 caracteres)…",
+    ai_send: "Enviar",
+    ai_cancel_generation: "Cancelar generación",
+    ai_continue_analysis: "Continuar análisis",
+    ai_progress_status:
+      "Revisadas {{reviewed}} · Restantes {{remaining}}",
+    ai_proposal_title: "Propuesta de cambios",
+    ai_proposal_revision: "Revisión #{{revision}}",
+    ai_proposal_counts:
+      "+{{added}} nuevos · ~{{modified}} modificados · -{{removed}} eliminados",
+    ai_proposal_preview: "Ver vista previa",
+    ai_proposal_exit_preview: "Salir de vista previa",
+    ai_proposal_accept: "Aceptar cambios",
+    ai_proposal_discard: "Descartar",
+    ai_proposal_regenerate: "Regenerar sobre versión actual",
+    ai_proposal_stale_warning:
+      "El diagrama cambió desde que se generó esta propuesta. Regenera antes de aplicar.",
+    ai_proposal_page_info: "Página {{page}} de {{totalPages}} ({{totalItems}} cambios)",
+    ai_proposal_prev_page: "Anterior",
+    ai_proposal_next_page: "Siguiente",
+    ai_preview_banner:
+      "Vista previa de propuesta IA (Revisión #{{revision}}) · solo lectura · privado hasta confirmar",
+    ai_preview_stale_banner:
+      "Propuesta IA desactualizada respecto a la versión actual · regenera para poder aplicar",
+    ai_change_added: "Nuevo",
+    ai_change_modified: "Modificado",
+    ai_change_removed: "Eliminado",
+    ai_error_disabled: "El asistente de IA está deshabilitado",
+    ai_error_unavailable: "El servicio de IA no está disponible temporalmente",
+    ai_error_limit: "Se alcanzó el límite de solicitudes de IA. Espera unos segundos.",
+    ai_error_busy: "Ya hay una generación de IA activa",
+    ai_error_model_unavailable: "El modelo elegido no está disponible",
+    ai_error_unsupported: "La operación solicitada no está soportada por este modelo o esquema",
+    ai_error_invalid_proposal: "La propuesta generada no superó la validación del esquema",
+    ai_error_stale_proposal: "La propuesta quedó obsoleta porque el diagrama cambió",
+    ai_error_expired_proposal: "La propuesta ha expirado",
+    ai_error_forbidden: "No tienes permisos para realizar esta acción",
+    ai_error_not_found: "No se encontró el recurso solicitado",
   },
 };
 

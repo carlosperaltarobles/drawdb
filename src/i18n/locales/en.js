@@ -30,6 +30,7 @@ const en = {
     history_this_week: "This week",
     history_kind_pre_bulk_delete: "Before bulk delete",
     history_kind_pre_restore: "Before restore",
+    history_kind_pre_ai_apply: "Before AI apply",
     history_named_limit: "Reached the limit of 100 named versions",
     history_load_more: "Load more",
     history_rename: "Rename",
@@ -536,6 +537,69 @@ const en = {
     focus_bar_label: "Focused: {{name}}",
     focus_exit: "Exit",
     focus_root_deleted: "The focused table was deleted; focus mode was closed",
+    ai_agent_title: "AI Assistant",
+    ai_toggle_panel: "AI Assistant",
+    ai_private_notice:
+      "Private conversation for your user in this project. Only accepted changes are shared.",
+    ai_viewer_readonly_notice:
+      "Viewer mode: you can analyze and discuss the schema, but cannot apply changes.",
+    ai_model_label: "Model",
+    ai_refresh_models: "Refresh models",
+    ai_model_search_placeholder: "Search model…",
+    ai_models_empty: "No models available in catalog",
+    ai_models_stale: "Cached model catalog (stale data)",
+    ai_model_unavailable_notice:
+      "Selected model ({{model}}) is no longer available. Choose another model to continue.",
+    ai_model_chat_only:
+      "This model only supports chat and analysis; it cannot generate edit proposals.",
+    ai_model_unknown_capabilities:
+      "Some capabilities for this model are unknown and not authorized for edit proposals.",
+    ai_model_supports_proposals: "Chat & proposals",
+    ai_conversation_label: "Conversation",
+    ai_new_conversation: "New conversation",
+    ai_delete_conversation: "Delete conversation",
+    ai_delete_conversation_confirm:
+      "Delete this private conversation and its pending proposals?",
+    ai_empty_messages:
+      "Ask a question about the schema or request a change proposal.",
+    ai_message_placeholder:
+      "Ask about the diagram or request changes (max 8,000 chars)…",
+    ai_send: "Send",
+    ai_cancel_generation: "Cancel generation",
+    ai_continue_analysis: "Continue analysis",
+    ai_progress_status: "Reviewed {{reviewed}} · Remaining {{remaining}}",
+    ai_proposal_title: "Change proposal",
+    ai_proposal_revision: "Revision #{{revision}}",
+    ai_proposal_counts:
+      "+{{added}} added · ~{{modified}} modified · -{{removed}} removed",
+    ai_proposal_preview: "Preview changes",
+    ai_proposal_exit_preview: "Exit preview",
+    ai_proposal_accept: "Accept changes",
+    ai_proposal_discard: "Discard",
+    ai_proposal_regenerate: "Regenerate on current version",
+    ai_proposal_stale_warning:
+      "The diagram changed since this proposal was generated. Regenerate before applying.",
+    ai_proposal_page_info: "Page {{page}} of {{totalPages}} ({{totalItems}} changes)",
+    ai_proposal_prev_page: "Previous",
+    ai_proposal_next_page: "Next",
+    ai_preview_banner:
+      "AI proposal preview (Revision #{{revision}}) · read-only · private until confirmed",
+    ai_preview_stale_banner:
+      "AI proposal is outdated relative to current version · regenerate to apply",
+    ai_change_added: "Added",
+    ai_change_modified: "Modified",
+    ai_change_removed: "Removed",
+    ai_error_disabled: "AI assistant is disabled",
+    ai_error_unavailable: "AI service is temporarily unavailable",
+    ai_error_limit: "AI rate limit reached. Please wait a moment.",
+    ai_error_busy: "An AI generation is already in progress",
+    ai_error_model_unavailable: "The selected model is unavailable",
+    ai_error_unsupported: "The requested operation is not supported by this model or schema",
+    ai_error_invalid_proposal: "The generated proposal failed schema validation",
+    ai_error_stale_proposal: "Proposal became outdated because the diagram changed",
+    ai_error_expired_proposal: "The proposal has expired",
+    ai_error_forbidden: "You do not have permission to perform this action",
+    ai_error_not_found: "Requested resource was not found",
   },
 };
 

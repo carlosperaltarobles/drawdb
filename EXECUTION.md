@@ -46,4 +46,20 @@
   - Implemented `flushPendingOps()` and `waitForAckedVersion()` in `ProjectSession.js` and exposed `confirmed` in `CollabClient.js` and `startAiPreview` in `ProjectCollabProvider.jsx`.
   - Implemented `src/ai/aiState.js` (`createAiController`, strict capability classification where `null` is never treated as authorized, no silent model fallback, anti-double-submit, SSE progress/proposal/continuation handling, stale detection on version advance, and cleanup on `restored`, `role_changed`, `deleted`, `access_revoked`).
   - Command: `npx vitest run src/api/ai.test.js src/ai/aiState.test.js src/collab/ProjectSession.test.js` -> 3 test files passed (23 tests).
+  - Commit: `7e3eb34`
+
+## Task 8 — Panel de chat y selector de modelos
+- **Files created / modified:**
+  - `src/ai/ModelSelector.jsx`
+  - `src/ai/AIChatPanel.jsx`
+  - `src/ai/AIChatPanel.test.js`
+  - `src/pages/ProjectEditor.jsx`
+  - `src/i18n/locales/es.js`, `src/i18n/locales/en.js`
+- **TDD & Verification:**
+  - Wrote `src/ai/AIChatPanel.test.js` first; ran `npx vitest run src/ai/AIChatPanel.test.js` -> observed expected `Cannot find module '/src/ai/ModelSelector'` failure.
+  - Implemented `ModelSelector.jsx` (search filter, explicit refresh, empty/error/stale catalog states, chat-only warning, unknown-capability warning, unavailable selected model warning).
+  - Implemented `AIChatPanel.jsx` (accessible `aside` and `role="log"` live region, private conversation notice, viewer read-only notice, conversation switcher/new/delete, XSS-safe plain-text message rendering with per-response model tags, progress/cancel, "Continuar análisis", and 25-item paginated proposal summary card).
+  - Mounted `AIChatPanel` in `ProjectEditor.jsx` `right-panel` slot (shared projects only; local editor `/editor` untouched).
+  - Command: `npx vitest run src/ai/AIChatPanel.test.js` -> 1 test file passed (2 comprehensive render suites).
+
 
