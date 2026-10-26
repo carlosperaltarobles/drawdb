@@ -110,7 +110,7 @@ export function runScaleComparisonSuite() {
   return rows;
 }
 
-async function runBrowserE2E(browser, baseUrl) {
+export async function runBrowserE2E(browser, baseUrl) {
   const page = await browser.newPage({
     viewport: { width: 1600, height: 900 },
   });

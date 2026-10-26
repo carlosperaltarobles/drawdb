@@ -593,6 +593,8 @@ const es = {
       "Vista previa de propuesta IA (Revisión #{{revision}}) · solo lectura · privado hasta confirmar",
     ai_preview_stale_banner:
       "Propuesta IA desactualizada respecto a la versión actual · regenera para poder aplicar",
+    ai_preview_show_before: "Ver estado anterior",
+    ai_preview_show_after: "Ver estado propuesto",
     ai_change_added: "Nuevo",
     ai_change_modified: "Modificado",
     ai_change_removed: "Eliminado",

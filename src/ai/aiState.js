@@ -222,6 +222,13 @@ export function createAiController({
     if (!conversationId) return;
     emit({ messages: { ...state.messages, loading: true } });
     const res = await api.listMessages(projectId, conversationId);
+    if (
+      state.disposed ||
+      (state.activeConversationId &&
+        state.activeConversationId !== conversationId)
+    ) {
+      return;
+    }
     const { proposals, activeProposal } = syncProposals(
       res?.proposals ?? [],
       state.version,
@@ -721,7 +728,7 @@ export function createAiController({
       return state;
     },
 
-    openProposalPreview: async (proposalId) => {
+    openProposalPreview: async (proposalId, { mode = "after" } = {}) => {
       const targetId = proposalId ?? state.activeProposal?.id;
       if (!targetId) return null;
       if (waitForAckedVersion) {
@@ -731,11 +738,19 @@ export function createAiController({
         }
       }
       const detail = await api.getProposal(projectId, targetId);
+      if (
+        state.disposed ||
+        (state.activeProposal?.id &&
+          state.activeProposal.id !== targetId &&
+          state.activeProposal.revision > (detail?.proposal?.revision ?? 0))
+      ) {
+        return null;
+      }
       const stale = Boolean(
         detail.stale || computeProposalStale(detail.proposal, state.version),
       );
       const prop = { ...detail.proposal, stale };
-      const normalizedDetail = { ...detail, proposal: prop, stale };
+      const normalizedDetail = { ...detail, proposal: prop, mode, stale };
       emit({
         activeProposal: prop,
         previewDetail: normalizedDetail,
@@ -748,6 +763,7 @@ export function createAiController({
         proposal: prop,
         before: detail.before,
         after: detail.after,
+        mode,
         stale,
         onApply: () => controller.acceptProposal(targetId),
         onDiscard: () => controller.discardPendingProposal(targetId),
@@ -802,6 +818,49 @@ export function createAiController({
         return res;
       } catch (err) {
         const code = extractErrorCode(err);
+        if (
+          api.getProposal &&
+          code !== "ai_stale_proposal" &&
+          code !== "ai_expired_proposal" &&
+          code !== "forbidden"
+        ) {
+          try {
+            const check = await api.getProposal(projectId, prop.id);
+            if (check?.proposal?.status === "applied") {
+              const appliedVersion =
+                check.proposal.appliedVersion ?? state.version;
+              const appliedProp = {
+                ...prop,
+                ...check.proposal,
+                status: "applied",
+                appliedVersion,
+                stale: false,
+              };
+              endPreview?.();
+              emit({
+                applyingProposal: false,
+                error: null,
+                version: Number.isFinite(appliedVersion)
+                  ? appliedVersion
+                  : state.version,
+                activeProposal: null,
+                previewDetail: null,
+                proposals: state.proposals.map((p) =>
+                  p.id === prop.id ? appliedProp : p,
+                ),
+              });
+              return {
+                proposalId: prop.id,
+                revision: prop.revision,
+                version: appliedVersion,
+                snapshotId: check.proposal.snapshotId ?? null,
+                applied: true,
+              };
+            }
+          } catch {
+            // Fall through to normal error handling
+          }
+        }
         const isStale = code === "ai_stale_proposal";
         const isExpired = code === "ai_expired_proposal";
         const nextProp = {
@@ -814,7 +873,11 @@ export function createAiController({
           error: code,
           activeProposal: isExpired ? null : nextProp,
           previewDetail: state.previewDetail
-            ? { ...state.previewDetail, proposal: nextProp, stale: nextProp.stale }
+            ? {
+                ...state.previewDetail,
+                proposal: nextProp,
+                stale: nextProp.stale,
+              }
             : null,
         });
         throw err;
@@ -858,14 +921,18 @@ export function createAiController({
 
       const proposals = state.proposals.map((p) => ({
         ...p,
-        stale: restoredChanged || computeProposalStale(p, nextVersion),
+        stale:
+          state.applyingProposal && state.activeProposal?.id === p.id
+            ? p.stale
+            : restoredChanged || computeProposalStale(p, nextVersion),
       }));
       const activeProposal = state.activeProposal
         ? {
             ...state.activeProposal,
-            stale:
-              restoredChanged ||
-              computeProposalStale(state.activeProposal, nextVersion),
+            stale: state.applyingProposal
+              ? state.activeProposal.stale
+              : restoredChanged ||
+                computeProposalStale(state.activeProposal, nextVersion),
           }
         : null;
       const previewDetail = state.previewDetail

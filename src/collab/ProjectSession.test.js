@@ -380,4 +380,15 @@ describe("ProjectSession", () => {
     await expect(waitPromise).rejects.toThrow("offline");
   });
 
+  it("waitForAckedVersion / flushPending rechaza por timeout si el ack nunca llega", async () => {
+    const { session, snapshot } = setup();
+    snapshot(doc(), 1);
+    const initial = session.hydrate();
+    session.observe(initial);
+    session.observe({ ...initial, notes: [{ id: "n-timeout" }] });
+
+    const waitPromise = session.flushPending({ timeoutMs: 250 });
+    vi.advanceTimersByTime(300);
+    await expect(waitPromise).rejects.toThrow("timeout");
+  });
 });

@@ -248,4 +248,70 @@ describe("aiState helpers and controller", () => {
     expect(mapAiErrorCode("ai_stale_proposal")).toBe("ai_error_stale_proposal");
     expect(mapAiErrorCode("ai_limit")).toBe("ai_error_limit");
   });
+
+  it("recovers applied proposal state when applyProposal HTTP response is lost and ignores version advance while applying", async () => {
+    const endPreview = vi.fn();
+    let ctrl;
+    const api = {
+      listModels: vi.fn(async () => protocolFixture.catalog),
+      listConversations: vi.fn(async () => ({
+        items: [
+          {
+            id: protocolFixture.proposal.conversationId,
+            projectId: "p1",
+            selectedModel: "chat-a",
+            title: "Audit",
+            updatedAt: "2026-10-26T12:00:00.000Z",
+            activeGenerationId: null,
+          },
+        ],
+        nextCursor: null,
+      })),
+      listMessages: vi.fn(async () => ({
+        items: [],
+        proposals: [{ ...protocolFixture.proposal, baseVersion: 2 }],
+        nextCursor: null,
+      })),
+      applyProposal: vi.fn(async () => {
+        // Remote Socket.IO ops arrive while HTTP applyProposal is in flight
+        ctrl.syncCollabState({ version: 3, role: "editor", lastRestoredAt: 0 });
+        expect(ctrl.getState().activeProposal?.stale).toBe(false);
+        // Simulate lost HTTP response / network drop after server committed
+        throw new Error("network_disconnected");
+      }),
+      getProposal: vi.fn(async () => ({
+        proposal: {
+          ...protocolFixture.proposal,
+          baseVersion: 2,
+          status: "applied",
+          appliedVersion: 3,
+          snapshotId: "snap-recovered",
+        },
+        before: { tables: [] },
+        after: { tables: [] },
+        stale: false,
+      })),
+    };
+
+    ctrl = createAiController({
+      projectId: "p1",
+      api,
+      endPreview,
+      initialRole: "editor",
+      initialVersion: 2,
+    });
+
+    await ctrl.initialize();
+    const res = await ctrl.acceptProposal(protocolFixture.proposal.id);
+    expect(res).toEqual({
+      proposalId: protocolFixture.proposal.id,
+      revision: protocolFixture.proposal.revision,
+      version: 3,
+      snapshotId: "snap-recovered",
+      applied: true,
+    });
+    expect(endPreview).toHaveBeenCalled();
+    expect(ctrl.getState().activeProposal).toBeNull();
+    expect(ctrl.getState().version).toBe(3);
+  });
 });

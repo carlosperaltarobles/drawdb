@@ -177,6 +177,7 @@ export async function subscribeGenerationEvents(
     while (reading) {
       const { value, done } = await reader.read();
       if (done) {
+        buffer += decoder.decode();
         reading = false;
         break;
       }
@@ -187,7 +188,7 @@ export async function subscribeGenerationEvents(
         const parsed = parseSseFrame(frame);
         if (!parsed) continue;
         if (parsed.id != null) curId = parsed.id;
-        onEvent?.(parsed);
+        await onEvent?.(parsed);
       }
     }
 
@@ -195,7 +196,7 @@ export async function subscribeGenerationEvents(
       const parsed = parseSseFrame(buffer);
       if (parsed) {
         if (parsed.id != null) curId = parsed.id;
-        onEvent?.(parsed);
+        await onEvent?.(parsed);
       }
     }
 

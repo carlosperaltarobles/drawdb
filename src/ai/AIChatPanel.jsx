@@ -123,6 +123,10 @@ export default function AIChatPanel({
     null;
 
   const activeProposal = aiState.activeProposal;
+  const activeProposalKey = `${activeProposal?.id ?? ""}:${activeProposal?.revision ?? ""}`;
+  useEffect(() => {
+    setProposalPage(1);
+  }, [activeProposalKey]);
   const isPreviewingProposal =
     preview?.kind === "ai" &&
     activeProposal &&

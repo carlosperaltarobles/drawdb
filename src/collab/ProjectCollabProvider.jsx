@@ -123,32 +123,44 @@ export default function ProjectCollabProvider({ projectId, children }) {
       sendAwareness: session.sendAwareness,
       canWrite: session.canWrite,
       flushPendingOps: session.flushPendingOps,
+      flushPending: session.waitForAckedVersion,
       waitForAckedVersion: session.waitForAckedVersion,
       startPreview: session.startPreview,
+      setAiPreviewMode: session.setAiPreviewMode,
       startAiPreview: ({
         proposal,
         before,
         after,
+        mode = "after",
         stale,
         onApply,
         onDiscard,
         onRegenerate,
-      }) =>
-        session.startPreview(normalizePreviewDoc(after, session.editorDoc), {
-          kind: "ai",
-          id: proposal.id,
-          proposal,
-          before: normalizePreviewDoc(before, session.editorDoc),
-          after: normalizePreviewDoc(after, session.editorDoc),
-          stale: Boolean(
-            stale ||
-              (proposal?.baseVersion != null &&
-                session.client.version !== proposal.baseVersion),
-          ),
-          onApply,
-          onDiscard,
-          onRegenerate,
-        }),
+      }) => {
+        const normalizedBefore = normalizePreviewDoc(before, session.editorDoc);
+        const normalizedAfter = normalizePreviewDoc(after, session.editorDoc);
+        const initialMode = mode === "before" ? "before" : "after";
+        return session.startPreview(
+          initialMode === "before" ? normalizedBefore : normalizedAfter,
+          {
+            kind: "ai",
+            id: proposal.id,
+            proposal,
+            mode: initialMode,
+            before: normalizedBefore,
+            after: normalizedAfter,
+            stale: Boolean(
+              stale ||
+                (proposal?.baseVersion != null &&
+                  session.client.version !== proposal.baseVersion),
+            ),
+            onToggleMode: (nextMode) => session.setAiPreviewMode(nextMode),
+            onApply,
+            onDiscard,
+            onRegenerate,
+          },
+        );
+      },
       previewSnapshot: createPreviewLoader({
         fetch: (snapshotId) => history.get(projectId, snapshotId),
         start: ({ diagram, ...meta }) =>

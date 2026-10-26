@@ -107,7 +107,8 @@ export class ProjectSession {
   }
 
   rejectAckWaiters(reason = "offline") {
-    for (const { reject } of this.ackWaiters.splice(0)) {
+    for (const { reject, timer } of this.ackWaiters.splice(0)) {
+      if (timer) clearTimeout(timer);
       reject(new Error(reason));
     }
   }
@@ -117,8 +118,10 @@ export class ProjectSession {
     const payload = {
       doc: this.client.confirmed ?? this.client.shadow ?? this.editorDoc,
       version: this.client.version,
+      epoch: this.epoch ?? 0,
     };
-    for (const { resolve } of this.ackWaiters.splice(0)) {
+    for (const { resolve, timer } of this.ackWaiters.splice(0)) {
+      if (timer) clearTimeout(timer);
       resolve(payload);
     }
   }
@@ -197,7 +200,7 @@ export class ProjectSession {
     }
   };
 
-  waitForAckedVersion = () => {
+  waitForAckedVersion = ({ timeoutMs = 10000 } = {}) => {
     this.flushPendingOps();
     if (
       !this.active ||
@@ -210,12 +213,23 @@ export class ProjectSession {
       return Promise.resolve({
         doc: this.client.confirmed ?? this.client.shadow ?? this.editorDoc,
         version: this.client.version,
+        epoch: this.epoch ?? 0,
       });
     }
     return new Promise((resolve, reject) => {
-      this.ackWaiters.push({ resolve, reject });
+      const waiter = { resolve, reject, timer: null };
+      if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
+        waiter.timer = setTimeout(() => {
+          const idx = this.ackWaiters.indexOf(waiter);
+          if (idx !== -1) this.ackWaiters.splice(idx, 1);
+          reject(new Error("timeout"));
+        }, timeoutMs);
+      }
+      this.ackWaiters.push(waiter);
     });
   };
+
+  flushPending = this.waitForAckedVersion;
 
   startPreview = (doc, meta) => {
     // Send the local edit still waiting for its 50ms batch before going read-only.
@@ -225,6 +239,21 @@ export class ProjectSession {
     this.cancelTimers();
     this.apply?.(doc, previous, false);
     this.update({ preview: meta });
+  };
+
+  setAiPreviewMode = (mode = "after") => {
+    if (this.preview?.meta?.kind !== "ai") return;
+    const nextMode = mode === "before" ? "before" : "after";
+    const nextDoc =
+      nextMode === "before"
+        ? this.preview.meta.before ?? this.editorDoc
+        : this.preview.meta.after ?? this.preview.doc;
+    const previous = this.preview.doc;
+    const nextMeta = { ...this.preview.meta, mode: nextMode };
+    this.preview = { doc: nextDoc, meta: nextMeta };
+    this.cancelTimers();
+    this.apply?.(nextDoc, previous, false);
+    this.update({ preview: nextMeta });
   };
 
   endPreview = () => {

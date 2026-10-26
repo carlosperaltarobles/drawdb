@@ -2,6 +2,33 @@ import { SIMPLIFIED_TABLE_ZOOM, cullBounds } from "../utils/culling";
 import { LOCATE_MIN_ZOOM, LOCATE_ZOOM } from "../utils/locate";
 import { getTableHeight, getTableWidth } from "../utils/utils";
 
+const INDEX_COLLS = ["tables", "areas", "notes", "views", "relationships"];
+const docEntityCache = new WeakMap();
+
+function getDocIndex(doc) {
+  if (!doc || typeof doc !== "object") return new Map();
+  let cached = docEntityCache.get(doc);
+  if (cached) return cached;
+  cached = new Map();
+  for (const coll of INDEX_COLLS) {
+    const map = new Map();
+    const list = Array.isArray(doc[coll]) ? doc[coll] : [];
+    for (const item of list) {
+      if (item && item.id !== undefined) {
+        map.set(item.id, item);
+      }
+    }
+    cached.set(coll, map);
+  }
+  docEntityCache.set(doc, cached);
+  return cached;
+}
+
+function getEntityById(doc, coll, id) {
+  const collMap = getDocIndex(doc).get(coll);
+  return collMap ? collMap.get(id) ?? null : null;
+}
+
 function computeEntityBox(coll, entity, doc) {
   if (!entity) return null;
   if (coll === "tables") {
@@ -43,9 +70,8 @@ function computeEntityBox(coll, entity, doc) {
     };
   }
   if (coll === "relationships") {
-    const tables = doc?.tables ?? [];
-    const startT = tables.find((t) => t.id === entity.startTableId);
-    const endT = tables.find((t) => t.id === entity.endTableId);
+    const startT = getEntityById(doc, "tables", entity.startTableId);
+    const endT = getEntityById(doc, "tables", entity.endTableId);
     if (!startT && !endT) return null;
     const ax = Number(startT?.x ?? endT?.x) || 0;
     const ay = Number(startT?.y ?? endT?.y) || 0;
@@ -104,8 +130,7 @@ export function buildProposalMarkers(
     seenKeys.add(dedupeKey);
 
     if (targetChange === "removed") {
-      const list = Array.isArray(before[targetColl]) ? before[targetColl] : [];
-      const entity = list.find((e) => e.id === targetId);
+      const entity = getEntityById(before, targetColl, targetId);
       const box = computeEntityBox(targetColl, entity, before);
       if (box && overlapsBounds(box, bounds)) {
         ghosts.push({
@@ -119,8 +144,7 @@ export function buildProposalMarkers(
         });
       }
     } else {
-      const list = Array.isArray(after[targetColl]) ? after[targetColl] : [];
-      const entity = list.find((e) => e.id === targetId);
+      const entity = getEntityById(after, targetColl, targetId);
       const box = computeEntityBox(targetColl, entity, after);
       if (box && overlapsBounds(box, bounds)) {
         markers.push({
@@ -152,10 +176,7 @@ export function locateProposalItem(
   const targetId = isSubItem ? item.parentId ?? item.id : item.id;
   const sourceDoc =
     item.change === "removed" ? preview.before ?? {} : preview.after ?? {};
-  const list = Array.isArray(sourceDoc[targetColl])
-    ? sourceDoc[targetColl]
-    : [];
-  const entity = list.find((e) => e.id === targetId);
+  const entity = getEntityById(sourceDoc, targetColl, targetId);
   const box = computeEntityBox(targetColl, entity, sourceDoc);
   const nextZoom =
     currentZoom < LOCATE_MIN_ZOOM ? LOCATE_ZOOM : currentZoom;

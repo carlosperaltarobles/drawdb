@@ -586,6 +586,8 @@ const en = {
       "AI proposal preview (Revision #{{revision}}) · read-only · private until confirmed",
     ai_preview_stale_banner:
       "AI proposal is outdated relative to current version · regenerate to apply",
+    ai_preview_show_before: "Show previous state",
+    ai_preview_show_after: "Show proposed state",
     ai_change_added: "Added",
     ai_change_modified: "Modified",
     ai_change_removed: "Removed",

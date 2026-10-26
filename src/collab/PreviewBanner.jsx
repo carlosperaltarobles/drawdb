@@ -61,6 +61,24 @@ export default function PreviewBanner() {
         <div className="flex items-center gap-2">
           <Button
             size="small"
+            data-testid="ai-preview-toggle-mode"
+            onClick={() => {
+              const nextMode = preview.mode === "before" ? "after" : "before";
+              if (preview.onToggleMode) {
+                preview.onToggleMode(nextMode);
+              } else {
+                collab?.setAiPreviewMode?.(nextMode);
+              }
+            }}
+          >
+            {t(
+              preview.mode === "before"
+                ? "ai_preview_show_after"
+                : "ai_preview_show_before",
+            )}
+          </Button>
+          <Button
+            size="small"
             data-testid="ai-preview-exit"
             onClick={() => endPreview?.()}
           >

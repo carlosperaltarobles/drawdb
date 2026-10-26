@@ -298,4 +298,65 @@ describe("proposalMarkers & ProposalPreviewLayer", () => {
     expect(sent.filter(([e]) => e === "ops")).toHaveLength(0);
     expect(currentCanvasDoc.tables.length).toBe(fixture.after.tables.length);
   });
+
+  it("toggles AI preview between after and before documents without emitting ops", () => {
+    const baseDoc = createSyntheticDiagram(5);
+    const fixture = createSyntheticProposalFixture(baseDoc, {
+      changeCount: 3,
+      baseVersion: 1,
+    });
+    const listeners = new Map();
+    const sent = [];
+    const socket = {
+      on: (ev, fn) => listeners.set(ev, fn),
+      off: (ev) => listeners.delete(ev),
+      connect() {},
+      disconnect() {},
+      emit: (...args) => sent.push(args),
+      volatile: { emit: (...args) => sent.push(args) },
+    };
+    const applied = [];
+    const session = new ProjectSession({
+      projectId: "p1",
+      socket,
+      onState: () => {},
+      onExit: () => {},
+      onNotice: () => {},
+    });
+    session.registerAppliers((next, previous, reset) =>
+      applied.push({ next, previous, reset }),
+    );
+    session.start();
+    listeners.get("connect")?.();
+    sent.filter(([e]) => e === "join").at(-1)[2]({
+      ok: true,
+      doc: baseDoc,
+      version: 1,
+      epoch: 1,
+      role: "editor",
+      name: "P1",
+      peers: [],
+    });
+    session.observe(session.hydrate());
+
+    session.startPreview(fixture.after, {
+      kind: "ai",
+      id: fixture.proposal.id,
+      proposal: fixture.proposal,
+      mode: "after",
+      before: fixture.before,
+      after: fixture.after,
+      stale: false,
+    });
+    expect(applied.at(-1).next).toBe(fixture.after);
+
+    session.setAiPreviewMode("before");
+    expect(session.state.preview.mode).toBe("before");
+    expect(applied.at(-1).next).toBe(fixture.before);
+
+    session.setAiPreviewMode("after");
+    expect(session.state.preview.mode).toBe("after");
+    expect(applied.at(-1).next).toBe(fixture.after);
+    expect(sent.filter(([e]) => e === "ops")).toHaveLength(0);
+  });
 });
