@@ -172,10 +172,14 @@ export async function subscribeGenerationEvents(
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    let reading = true;
 
-    while (true) {
+    while (reading) {
       const { value, done } = await reader.read();
-      if (done) break;
+      if (done) {
+        reading = false;
+        break;
+      }
       buffer += decoder.decode(value, { stream: true });
       const parts = buffer.split(/\r?\n\r?\n/);
       buffer = parts.pop() ?? "";

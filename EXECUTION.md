@@ -79,6 +79,27 @@
   - Updated `src/collab/HistoryPanel.jsx` to render `history_kind_pre_ai_apply` and avoid selecting history items when an AI preview is active.
   - Verified HTTP `applyProposal` + remote `ops` flow never re-emits previewed changes as local socket `ops`.
   - Command: `npx vitest run src/ai/proposalPreview.test.js src/collab/HistoryPanel.test.js src/ai/AIChatPanel.test.js` -> 3 test files passed (7 tests).
+  - Commit: `d3a3f78`
+
+## Task 10 — Pruebas integradas y rendimiento a escala (Frontend E2E & Scale Harness)
+- **Files created / modified:**
+  - `src/ai/fixtureProvider.js`
+  - `src/ai/aiScaleIntegration.test.js`
+  - `scripts/perf/ai-e2e-perf.mjs`
+  - `src/api/ai.js` (fixed ESLint `no-constant-condition` on stream reader loop)
+- **TDD & Verification:**
+  - Wrote `src/ai/aiScaleIntegration.test.js` first; ran `npx vitest run src/ai/aiScaleIntegration.test.js` -> observed expected `Cannot find module '/src/ai/fixtureProvider'` failure.
+  - Implemented `src/ai/fixtureProvider.js` (mock room + multi-peer Socket.IO + full `/api/projects/:id/ai/*` contract, private per-user conversation isolation, viewer/editor role enforcement, SSE `progress`/`proposal`/`done` streaming, `pre_ai_apply` snapshot creation, and `409 ai_stale_proposal` conflict simulation).
+  - Implemented `scripts/perf/ai-e2e-perf.mjs` (5-warm-run 200/500/1,000-table scale benchmark + Playwright browser E2E runner).
+  - Scale metrics (5 warm runs with 60-change proposals across 200, 500, and 1,000 tables):
+    - `200` tables: `paginateMedianMs = 0.010`, `cullMarkersMedianMs = 0.177`, `serializeAfterMedianMs = 5.08`
+    - `500` tables: `paginateMedianMs = 0.011`, `cullMarkersMedianMs = 0.109`, `serializeAfterMedianMs = 9.87`
+    - `1000` tables: `paginateMedianMs = 0.013`, `cullMarkersMedianMs = 0.366`, `serializeAfterMedianMs = 18.11`
+  - Commands:
+    - `npm test` -> 36 test files passed, 201 tests passed.
+    - `npm run lint` -> 0 errors, 0 warnings.
+    - `npm run build` -> succeeded (`dist/` built cleanly).
+
 
 
 
