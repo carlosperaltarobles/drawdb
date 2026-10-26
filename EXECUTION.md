@@ -13,3 +13,37 @@
 - Command: `npm test`
   - Result: 30 test files passed, 181 tests passed.
 - Chromium binary check: `/home/carlos/.cache/ms-playwright/chromium-1140/chrome-linux/chrome` exists; `ldd` reports missing host shared libraries (`libnss3.so`, `libnssutil3.so`, `libsmime3.so`, `libnspr4.so`, `libasound.so.2`) and `/tmp/pw-libs` is not present on the host.
+
+
+## Frontend Task 1 — Synthetic Fixture Generator & Baseline Harness
+- **Files created:**
+  - `src/ai/syntheticFixtures.js`
+  - `src/ai/syntheticFixtures.test.js`
+  - `scripts/perf/synthetic-baseline.mjs`
+- **TDD & Verification:**
+  - Wrote `src/ai/syntheticFixtures.test.js` first; ran `npx vitest run src/ai/syntheticFixtures.test.js` -> observed expected `Cannot find module './syntheticFixtures'` failure.
+  - Implemented `src/ai/syntheticFixtures.js` and `scripts/perf/synthetic-baseline.mjs`.
+  - Ran `npx vitest run src/ai/syntheticFixtures.test.js` -> 4 tests passed (determinism, 200/500/1000 table generation, 60-item proposal generation, 5-warm-run baseline culling/applyOps/diffDoc measurements).
+  - Ran `npm run build` -> succeeded (`dist/` built in 4.61s).
+  - Ran `ALLOW_BROWSER_BLOCKED=1 node scripts/perf/synthetic-baseline.mjs`:
+    - Deterministic 5-warm-run baseline metrics at ref `0c2dc62`:
+      - `200` tables: `generateMedianMs = 0.99`, `proposalMedianMs = 0.18` (`p95 = 0.19`), `serializeMedianMs = 1.93` (`p95 = 6.36`)
+      - `500` tables: `generateMedianMs = 0.45`, `proposalMedianMs = 0.07` (`p95 = 0.16`), `serializeMedianMs = 5.82` (`p95 = 8.54`)
+      - `1000` tables: `generateMedianMs = 1.72`, `proposalMedianMs = 0.11` (`p95 = 0.20`), `serializeMedianMs = 11.16` (`p95 = 14.69`)
+    - Exact Chromium browser blocker recorded:
+      `/home/carlos/.cache/ms-playwright/chromium-1140/chrome-linux/chrome: error while loading shared libraries: libnss3.so: cannot open shared object file: No such file or directory` (exitCode=127; missing host libraries `libnss3.so`, `libnssutil3.so`, `libsmime3.so`, `libnspr4.so`, `libasound.so.2`, and `/tmp/pw-libs` is absent).
+    - Preserved unchanged product baseline at git ref `0c2dc62`.
+  - Commit: `cdb0815`
+
+## Task 7 — Cliente y estado del agente en frontend
+- **Files created / modified:**
+  - `src/api/ai.js`, `src/api/ai.test.js`
+  - `src/ai/aiState.js`, `src/ai/aiState.test.js`
+  - `src/collab/CollabClient.js`, `src/collab/ProjectSession.js`, `src/collab/ProjectCollabProvider.jsx`, `src/collab/ProjectSession.test.js`
+- **TDD & Verification:**
+  - Wrote `src/api/ai.test.js`, `src/ai/aiState.test.js`, and new tests in `src/collab/ProjectSession.test.js` first; ran Vitest to observe expected failures (`Cannot find module './ai'`, `Cannot find module './aiState'`, `session.waitForAckedVersion is not a function`).
+  - Implemented `src/api/ai.js` (all `/projects/:id/ai/*` endpoints, SSE stream parser with `Last-Event-ID` header support, heartbeat filtering, and replay-miss fallback to canonical `getGeneration` + `listMessages`).
+  - Implemented `flushPendingOps()` and `waitForAckedVersion()` in `ProjectSession.js` and exposed `confirmed` in `CollabClient.js` and `startAiPreview` in `ProjectCollabProvider.jsx`.
+  - Implemented `src/ai/aiState.js` (`createAiController`, strict capability classification where `null` is never treated as authorized, no silent model fallback, anti-double-submit, SSE progress/proposal/continuation handling, stale detection on version advance, and cleanup on `restored`, `role_changed`, `deleted`, `access_revoked`).
+  - Command: `npx vitest run src/api/ai.test.js src/ai/aiState.test.js src/collab/ProjectSession.test.js` -> 3 test files passed (23 tests).
+

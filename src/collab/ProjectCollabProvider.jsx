@@ -64,6 +64,7 @@ export default function ProjectCollabProvider({ projectId, children }) {
     awareness: new Map(),
     ready: false,
     preview: null,
+    version: 0,
     lastRestoredAt: 0,
   });
   const session = useMemo(
@@ -121,12 +122,39 @@ export default function ProjectCollabProvider({ projectId, children }) {
       observe: session.observe,
       sendAwareness: session.sendAwareness,
       canWrite: session.canWrite,
+      flushPendingOps: session.flushPendingOps,
+      waitForAckedVersion: session.waitForAckedVersion,
+      startPreview: session.startPreview,
+      startAiPreview: ({
+        proposal,
+        before,
+        after,
+        stale,
+        onApply,
+        onDiscard,
+        onRegenerate,
+      }) =>
+        session.startPreview(normalizePreviewDoc(after, session.editorDoc), {
+          kind: "ai",
+          id: proposal.id,
+          proposal,
+          before: normalizePreviewDoc(before, session.editorDoc),
+          after: normalizePreviewDoc(after, session.editorDoc),
+          stale: Boolean(
+            stale ||
+              (proposal?.baseVersion != null &&
+                session.client.version !== proposal.baseVersion),
+          ),
+          onApply,
+          onDiscard,
+          onRegenerate,
+        }),
       previewSnapshot: createPreviewLoader({
         fetch: (snapshotId) => history.get(projectId, snapshotId),
         start: ({ diagram, ...meta }) =>
           session.startPreview(
             normalizePreviewDoc(diagram, session.editorDoc),
-            meta,
+            { kind: "history", ...meta },
           ),
         onError: () =>
           Toast.error(callbacks.current.t("history_preview_failed")),
