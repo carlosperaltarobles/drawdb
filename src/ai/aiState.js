@@ -59,8 +59,7 @@ export function getModelCapabilities(catalog, modelId) {
   }
   const caps = model.capabilities || {};
   const canChat = caps.chat === true;
-  const canPropose =
-    canChat && (caps.tools === true || caps.json === true);
+  const canPropose = canChat && (caps.tools === true || caps.json === true);
   const hasUnknownCapabilities = [
     caps.chat,
     caps.tools,
@@ -437,15 +436,23 @@ export function createAiController({
 
     initialize: async () => {
       emit({
+        disposed: false,
+        error: null,
         catalog: { ...state.catalog, loading: true, error: null },
         conversations: { ...state.conversations, loading: true },
       });
-      try {
-        const [catalogRes, convRes] = await Promise.all([
-          api.listModels ? api.listModels(projectId) : null,
-          api.listConversations ? api.listConversations(projectId) : null,
-        ]);
-        const catalog = {
+      const [catalogSettled, convSettled] = await Promise.allSettled([
+        api.listModels ? api.listModels(projectId) : Promise.resolve(null),
+        api.listConversations
+          ? api.listConversations(projectId)
+          : Promise.resolve(null),
+      ]);
+
+      let catalog = state.catalog;
+      let catalogError = null;
+      if (catalogSettled.status === "fulfilled") {
+        const catalogRes = catalogSettled.value;
+        catalog = {
           items: catalogRes?.items ?? [],
           fetchedAt: catalogRes?.fetchedAt ?? null,
           stale: Boolean(catalogRes?.stale),
@@ -453,20 +460,35 @@ export function createAiController({
           loading: false,
           error: null,
         };
-        const convItems = convRes?.items ?? [];
-        const firstConv = convItems[0] ?? null;
-        emit({
-          catalog,
-          conversations: {
-            items: convItems,
-            nextCursor: convRes?.nextCursor ?? null,
-            loading: false,
-          },
-          activeConversationId: firstConv?.id ?? null,
-          activeConversation: firstConv,
-          pendingModel: firstConv?.selectedModel ?? catalog.defaultModel,
-        });
-        if (firstConv?.id) {
+      } else {
+        catalogError = extractErrorCode(catalogSettled.reason);
+        catalog = {
+          ...state.catalog,
+          loading: false,
+          error: catalogError,
+        };
+      }
+
+      const convRes =
+        convSettled.status === "fulfilled" ? convSettled.value : null;
+      const convItems = convRes?.items ?? [];
+      const firstConv = convItems[0] ?? null;
+
+      emit({
+        error: catalogError,
+        catalog,
+        conversations: {
+          items: convItems,
+          nextCursor: convRes?.nextCursor ?? null,
+          loading: false,
+        },
+        activeConversationId: firstConv?.id ?? null,
+        activeConversation: firstConv,
+        pendingModel: firstConv?.selectedModel ?? catalog.defaultModel,
+      });
+
+      if (firstConv?.id) {
+        try {
           await loadConversationMessages(firstConv.id);
           if (firstConv.activeGenerationId) {
             await attachGenerationStream(
@@ -474,14 +496,9 @@ export function createAiController({
               firstConv.id,
             );
           }
+        } catch {
+          // Non-fatal during initial load
         }
-      } catch (err) {
-        const code = extractErrorCode(err);
-        emit({
-          error: code,
-          catalog: { ...state.catalog, loading: false, error: code },
-          conversations: { ...state.conversations, loading: false },
-        });
       }
       return state;
     },
@@ -754,10 +771,7 @@ export function createAiController({
       emit({
         activeProposal: prop,
         previewDetail: normalizedDetail,
-        proposals: [
-          prop,
-          ...state.proposals.filter((p) => p.id !== prop.id),
-        ],
+        proposals: [prop, ...state.proposals.filter((p) => p.id !== prop.id)],
       });
       startAiPreview?.({
         proposal: prop,

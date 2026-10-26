@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Modal, Select, Spin, Tag, TextArea, Toast } from "@douyinfe/semi-ui";
+import {
+  Button,
+  Modal,
+  Select,
+  Spin,
+  Tag,
+  TextArea,
+  Toast,
+} from "@douyinfe/semi-ui";
 import { useTranslation } from "react-i18next";
 import { useFocus, useTransform } from "../hooks";
 import { useProjectCollab } from "../collab/ProjectCollabProvider";
@@ -67,7 +75,8 @@ export default function AIChatPanel({
   const { t } = useTranslation();
 
   const projectId = collab?.projectId ?? initialState?.projectId ?? "project";
-  const effectiveRole = propRole ?? collab?.role ?? initialState?.role ?? "editor";
+  const effectiveRole =
+    propRole ?? collab?.role ?? initialState?.role ?? "editor";
   const version = collab?.version ?? initialState?.version ?? 0;
   const lastRestoredAt = collab?.lastRestoredAt ?? 0;
   const preview = collab?.preview ?? null;
@@ -177,7 +186,16 @@ export default function AIChatPanel({
           size="small"
           data-testid="ai-open-panel"
           aria-label={t("ai_toggle_panel")}
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            setOpen(true);
+            const st = controllerRef.current?.getState?.();
+            if (
+              !st?.catalog?.loading &&
+              (!st?.catalog?.items?.length || st?.catalog?.error)
+            ) {
+              controllerRef.current?.initialize?.();
+            }
+          }}
         >
           {t("ai_toggle_panel")}
         </Button>
@@ -232,14 +250,22 @@ export default function AIChatPanel({
         {aiState.conversations?.items?.length > 0 && (
           <div className="flex items-center gap-1.5">
             <Select
-              value={aiState.activeConversationId ?? ""}
+              value={aiState.activeConversationId ?? undefined}
+              optionList={aiState.conversations.items.map((c) => ({
+                value: c.id,
+                label: c.title || c.id.slice(0, 8),
+              }))}
               aria-label={t("ai_conversation_label")}
               disabled={Boolean(aiState.generation?.active)}
               onChange={(cid) => controllerRef.current?.selectConversation(cid)}
               style={{ flex: 1 }}
             >
               {aiState.conversations.items.map((c) => (
-                <Select.Option key={c.id} value={c.id}>
+                <Select.Option
+                  key={c.id}
+                  value={c.id}
+                  label={c.title || c.id.slice(0, 8)}
+                >
                   {c.title || c.id.slice(0, 8)}
                 </Select.Option>
               ))}

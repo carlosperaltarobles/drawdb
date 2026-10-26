@@ -1,11 +1,7 @@
 import { useMemo, useState } from "react";
 import { Button, Input, Select, Spin, Tag } from "@douyinfe/semi-ui";
 import { useTranslation } from "react-i18next";
-import {
-  filterModels,
-  getModelCapabilities,
-  mapAiErrorCode,
-} from "./aiState";
+import { filterModels, getModelCapabilities, mapAiErrorCode } from "./aiState";
 
 export default function ModelSelector({
   catalog = { items: [], fetchedAt: null, stale: false, defaultModel: null },
@@ -22,9 +18,14 @@ export default function ModelSelector({
     () => (Array.isArray(catalog?.items) ? catalog.items : []),
     [catalog?.items],
   );
-  const filtered = useMemo(
-    () => filterModels(items, search),
-    [items, search],
+  const filtered = useMemo(() => filterModels(items, search), [items, search]);
+  const optionList = useMemo(
+    () =>
+      filtered.map((item) => ({
+        value: item.id,
+        label: `${item.label || item.id}${item.provider ? ` (${item.provider})` : ""}`,
+      })),
+    [filtered],
   );
 
   const effectiveModelId = selectedModel ?? catalog?.defaultModel ?? null;
@@ -93,16 +94,17 @@ export default function ModelSelector({
         </div>
       ) : (
         <Select
-          value={effectiveModelId ?? ""}
+          value={effectiveModelId ?? undefined}
+          optionList={optionList}
+          placeholder={t("ai_model_label")}
           aria-label={t("ai_model_label")}
-          disabled={disabled}
+          disabled={disabled || Boolean(catalog?.loading && items.length === 0)}
           onChange={(val) => onSelectModel?.(val)}
           style={{ width: "100%" }}
         >
-          {filtered.map((item) => (
-            <Select.Option key={item.id} value={item.id}>
-              {item.label || item.id}
-              {item.provider ? ` (${item.provider})` : ""}
+          {optionList.map((opt) => (
+            <Select.Option key={opt.value} value={opt.value} label={opt.label}>
+              {opt.label}
             </Select.Option>
           ))}
         </Select>
