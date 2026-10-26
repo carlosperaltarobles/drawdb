@@ -64,6 +64,7 @@ export default function ProjectCollabProvider({ projectId, children }) {
     awareness: new Map(),
     ready: false,
     preview: null,
+    version: 0,
     lastRestoredAt: 0,
   });
   const session = useMemo(
@@ -121,12 +122,51 @@ export default function ProjectCollabProvider({ projectId, children }) {
       observe: session.observe,
       sendAwareness: session.sendAwareness,
       canWrite: session.canWrite,
+      flushPendingOps: session.flushPendingOps,
+      flushPending: session.waitForAckedVersion,
+      waitForAckedVersion: session.waitForAckedVersion,
+      startPreview: session.startPreview,
+      setAiPreviewMode: session.setAiPreviewMode,
+      startAiPreview: ({
+        proposal,
+        before,
+        after,
+        mode = "after",
+        stale,
+        onApply,
+        onDiscard,
+        onRegenerate,
+      }) => {
+        const normalizedBefore = normalizePreviewDoc(before, session.editorDoc);
+        const normalizedAfter = normalizePreviewDoc(after, session.editorDoc);
+        const initialMode = mode === "before" ? "before" : "after";
+        return session.startPreview(
+          initialMode === "before" ? normalizedBefore : normalizedAfter,
+          {
+            kind: "ai",
+            id: proposal.id,
+            proposal,
+            mode: initialMode,
+            before: normalizedBefore,
+            after: normalizedAfter,
+            stale: Boolean(
+              stale ||
+                (proposal?.baseVersion != null &&
+                  session.client.version !== proposal.baseVersion),
+            ),
+            onToggleMode: (nextMode) => session.setAiPreviewMode(nextMode),
+            onApply,
+            onDiscard,
+            onRegenerate,
+          },
+        );
+      },
       previewSnapshot: createPreviewLoader({
         fetch: (snapshotId) => history.get(projectId, snapshotId),
         start: ({ diagram, ...meta }) =>
           session.startPreview(
             normalizePreviewDoc(diagram, session.editorDoc),
-            meta,
+            { kind: "history", ...meta },
           ),
         onError: () =>
           Toast.error(callbacks.current.t("history_preview_failed")),

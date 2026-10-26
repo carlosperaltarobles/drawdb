@@ -24,12 +24,14 @@ export class ProjectSession {
       peers: [],
       awareness: new Map(),
       preview: null,
+      version: 0,
       lastRestoredAt: 0,
     };
     this.preview = null;
     this.pendingReset = false;
     this.generation = 0;
     this.waiters = [];
+    this.ackWaiters = [];
     this.listeners = {
       connect: () => this.join(),
       disconnect: () => this.suspend("offline"),
@@ -38,7 +40,10 @@ export class ProjectSession {
           ? this.exit("access_revoked")
           : this.suspend("offline"),
       ops: (batch) => this.rebase(() => this.client.remote(batch)),
-      ack: (batch) => this.rebase(() => this.client.ack(batch)),
+      ack: (batch) => {
+        this.rebase(() => this.client.ack(batch));
+        this.resolveAckWaitersIfIdle();
+      },
       resync: () => this.join(),
       restored: ({ by, snapshotCreatedAt }) => {
         this.endPreview();
@@ -101,10 +106,31 @@ export class ProjectSession {
     this.pendingAwareness = null;
   }
 
+  rejectAckWaiters(reason = "offline") {
+    for (const { reject, timer } of this.ackWaiters.splice(0)) {
+      if (timer) clearTimeout(timer);
+      reject(new Error(reason));
+    }
+  }
+
+  resolveAckWaitersIfIdle() {
+    if (this.client.hasPending) return;
+    const payload = {
+      doc: this.client.confirmed ?? this.client.shadow ?? this.editorDoc,
+      version: this.client.version,
+      epoch: this.epoch ?? 0,
+    };
+    for (const { resolve, timer } of this.ackWaiters.splice(0)) {
+      if (timer) clearTimeout(timer);
+      resolve(payload);
+    }
+  }
+
   stop() {
     this.active = false;
     this.generation++;
     this.cancelTimers();
+    this.rejectAckWaiters("stopped");
     this.ready = false;
     this.snapshotAvailable = false;
     for (const [event, listener] of Object.entries(this.listeners))
@@ -115,6 +141,7 @@ export class ProjectSession {
   suspend(status) {
     this.generation++;
     this.cancelTimers();
+    this.rejectAckWaiters(status === "connecting" ? "resync" : "offline");
     this.ready = false;
     this.snapshotAvailable = false;
     this.update({ status, ready: false, peers: [], awareness: new Map() });
@@ -139,11 +166,13 @@ export class ProjectSession {
         role: result.role,
         projectName: result.name,
         peers: result.peers,
+        version: this.client.version,
         awareness: new Map(),
       });
       if (this.preview) this.pendingReset = true;
       else if (this.hydrated) this.apply?.(this.editorDoc, previous, true);
       for (const resolve of this.waiters.splice(0)) resolve(this.editorDoc);
+      this.resolveAckWaitersIfIdle();
     });
   }
 
@@ -153,14 +182,78 @@ export class ProjectSession {
     this.onExit(reason);
   }
 
+  flushPendingOps = () => {
+    if (this.localTimer) {
+      clearTimeout(this.localTimer);
+      this.localTimer = null;
+      if (this.canWrite()) this.client.local(this.editorDoc);
+      return;
+    }
+    if (
+      !this.preview &&
+      this.canWrite() &&
+      this.editorDoc &&
+      this.client.shadow &&
+      !sameSlices(this.editorDoc, this.client.shadow)
+    ) {
+      this.client.local(this.editorDoc);
+    }
+  };
+
+  waitForAckedVersion = ({ timeoutMs = 10000 } = {}) => {
+    this.flushPendingOps();
+    if (
+      !this.active ||
+      !this.snapshotAvailable ||
+      this.state.status !== "online"
+    ) {
+      return Promise.reject(new Error("offline"));
+    }
+    if (!this.client.hasPending) {
+      return Promise.resolve({
+        doc: this.client.confirmed ?? this.client.shadow ?? this.editorDoc,
+        version: this.client.version,
+        epoch: this.epoch ?? 0,
+      });
+    }
+    return new Promise((resolve, reject) => {
+      const waiter = { resolve, reject, timer: null };
+      if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
+        waiter.timer = setTimeout(() => {
+          const idx = this.ackWaiters.indexOf(waiter);
+          if (idx !== -1) this.ackWaiters.splice(idx, 1);
+          reject(new Error("timeout"));
+        }, timeoutMs);
+      }
+      this.ackWaiters.push(waiter);
+    });
+  };
+
+  flushPending = this.waitForAckedVersion;
+
   startPreview = (doc, meta) => {
     // Send the local edit still waiting for its 50ms batch before going read-only.
-    if (this.localTimer && this.canWrite()) this.client.local(this.editorDoc);
+    this.flushPendingOps();
     const previous = this.preview ? this.preview.doc : this.editorDoc;
     this.preview = { doc, meta };
     this.cancelTimers();
     this.apply?.(doc, previous, false);
     this.update({ preview: meta });
+  };
+
+  setAiPreviewMode = (mode = "after") => {
+    if (this.preview?.meta?.kind !== "ai") return;
+    const nextMode = mode === "before" ? "before" : "after";
+    const nextDoc =
+      nextMode === "before"
+        ? this.preview.meta.before ?? this.editorDoc
+        : this.preview.meta.after ?? this.preview.doc;
+    const previous = this.preview.doc;
+    const nextMeta = { ...this.preview.meta, mode: nextMode };
+    this.preview = { doc: nextDoc, meta: nextMeta };
+    this.cancelTimers();
+    this.apply?.(nextDoc, previous, false);
+    this.update({ preview: nextMeta });
   };
 
   endPreview = () => {
@@ -242,6 +335,22 @@ export class ProjectSession {
       return;
     }
     this.editorDoc = rebased.doc;
+    if (
+      this.preview?.meta?.kind === "ai" &&
+      this.preview.meta.proposal?.baseVersion != null &&
+      this.client.version !== this.preview.meta.proposal.baseVersion
+    ) {
+      this.preview = {
+        ...this.preview,
+        meta: { ...this.preview.meta, stale: true },
+      };
+      this.update({
+        version: this.client.version,
+        preview: this.preview.meta,
+      });
+    } else if (this.state.version !== this.client.version) {
+      this.update({ version: this.client.version });
+    }
     if (this.hydrated && !this.preview)
       this.apply?.(this.editorDoc, previous, false);
   }

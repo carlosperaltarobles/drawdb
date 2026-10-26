@@ -12,6 +12,9 @@ export class CollabClient {
     this.#send = send;
   }
 
+  get confirmed() {
+    return this.#confirmed;
+  }
   get shadow() {
     return this.#shadow;
   }

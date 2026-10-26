@@ -93,3 +93,56 @@ npm run dev
 ```
 
 En otra terminal, desde este repositorio, instala dependencias con `npm ci` si hace falta y ejecuta `npm run dev`. Vite sirve el frontend en `http://localhost:5173` y proxya `/api` y `/socket.io` al backend local en el puerto `5000`; ambas rutas conservan el mismo origen para el navegador.
+
+## 7. Asistente de IA para diagramas (LiteLLM)
+
+El asistente de IA es opcional y está **deshabilitado por defecto** (`AI_ENABLED=false`). Todas las llamadas a LiteLLM ocurren exclusivamente desde `drawdb-api`; el frontend nunca recibe credenciales ni URLs internas del proxy.
+
+### 7.1 Variables de entorno en `drawdb-api`
+
+Añade las variables en los secretos del servicio `drawdb-api` en Dokploy (nunca en `drawdb-web` ni en archivos versionados):
+
+```dotenv
+AI_ENABLED=false
+LITELLM_BASE_URL=https://<tu-proxy-litellm>
+LITELLM_API_KEY=<clave-secreta-litellm>
+LITELLM_MODEL=gemini-4-argon
+AI_ALLOWED_MODELS=gemini-4-argon,gemini-3.8-flash,gemini-pro-latest,gemma-4-26b-a4b-it
+AI_MODEL_CAPABILITIES={"gemini-4-argon":{"chat":true,"tools":true,"json":true,"stream":true,"contextWindow":1048576,"maxOutputTokens":65536}}
+AI_CATALOG_TTL_MS=60000
+AI_CATALOG_REFRESH_MIN_MS=10000
+AI_GENERATION_TIMEOUT_MS=60000
+AI_MAX_ROUNDS=12
+AI_MAX_PROPOSAL_OPS=500
+AI_MAX_CONTEXT_BYTES=204800
+AI_MAX_MESSAGE_CHARS=8000
+AI_MAX_RECENT_MESSAGES=20
+AI_MAX_ACTIVE_PER_USER=1
+AI_MAX_ACTIVE_GLOBAL=4
+AI_RATE_LIMIT_USER_PER_MIN=10
+AI_RATE_LIMIT_PROJECT_PER_MIN=30
+```
+
+### 7.2 Prueba de conexión frente a prueba de capacidades de propuestas
+
+Una respuesta de texto simple (`CONEXION_OK`) solo demuestra conectividad básica de chat, **no** soporte de herramientas (`tools`) ni de esquema JSON (`response_format`) para propuestas.
+
+Antes de habilitar propuestas para un alias en `AI_MODEL_CAPABILITIES` o activar `AI_ENABLED=true`:
+
+1. Aplica la migración Prisma (`npm run migrate` / `prisma migrate deploy`), que añade `SnapshotKind.pre_ai_apply` y las tablas `ai_conversations`, `ai_messages`, `ai_proposals` y `ai_generations`.
+2. Ejecuta desde el contenedor o entorno de `drawdb-api` el script de verificación con mensajes sintéticos (sin pasar claves por argumentos de CLI):
+   ```bash
+   npx ts-node scripts/ai-capabilities.ts gemini-4-argon gemini-3.8-flash
+   ```
+3. Habilita `"tools": true` o `"json": true` únicamente en los alias verificados. Los modelos con capacidades desconocidas (`null`) o de solo conversación siguen disponibles para explicar el esquema, pero la interfaz bloquea la generación de propuestas y no cambia de modelo silenciosamente ante errores.
+
+### 7.3 Topología de una sola instancia, retención y desactivación
+
+- **Instancia única de colaboración**: `RoomManager` y `ProjectQueue` serializan en memoria las ediciones manuales de Socket.IO, las restauraciones de historial, el guardado diferido y la confirmación atómica de propuestas de IA. Mantén `drawdb-api` con **una sola réplica** activa.
+- **Retención y privacidad**:
+  - Las conversaciones y propuestas pendientes son privadas por usuario y proyecto.
+  - Las propuestas pendientes caducan a las **24 horas**; conversaciones inactivas y propuestas no aplicadas se podan a los **30 días**.
+  - Cada propuesta aplicada crea obligatoriamente una copia previa `pre_ai_apply` en el historial compartido del proyecto (conservada **30 días**). Eliminar una conversación privada borra sus mensajes y propuestas pendientes, pero **conserva** los snapshots `pre_ai_apply` ya creados en el historial del proyecto.
+- **Desactivación / Rollback**:
+  - Cambia `AI_ENABLED=false` y reinicia `drawdb-api` para desactivar inmediatamente las rutas `/api/projects/:id/ai/*` (`503 ai_disabled`) y ocultar el asistente sin afectar el editor, la colaboración ni el historial.
+

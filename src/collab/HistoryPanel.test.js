@@ -70,6 +70,14 @@ const sampleItems = [
       { id: "u4", name: "Luis" },
     ],
   },
+  {
+    id: "snap-ai",
+    kind: "pre_ai_apply",
+    name: null,
+    createdAt: "2026-10-23T12:05:00.000Z",
+    createdBy: { id: "u1", name: "Carlos" },
+    authors: [{ id: "u1", name: "Carlos" }],
+  },
 ];
 
 describe("HistoryPanel", () => {
@@ -98,6 +106,7 @@ describe("HistoryPanel", () => {
     expect(html).toContain("★ Antes de v2");
     expect(html).toContain("history_kind_pre_bulk_delete");
     expect(html).toContain("history_kind_pre_restore");
+    expect(html).toContain("history_kind_pre_ai_apply");
     expect(html).toContain("Carlos");
     expect(html).toContain("Pedro");
     expect(html).toContain("Ana, Luis");

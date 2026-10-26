@@ -339,4 +339,56 @@ describe("ProjectSession", () => {
       { t: "add", coll: "notes", item: { id: "pending" }, index: 0 },
     ]);
   });
+  it("flushPendingOps y waitForAckedVersion envían diff pendiente una sola vez y esperan ack", async () => {
+    const { session, snapshot, receive, sent } = setup();
+    snapshot(doc(), 2);
+    const initial = session.hydrate();
+    session.observe(initial);
+    session.observe({ ...initial, notes: [{ id: "n-flush" }] });
+
+    const waitPromise = session.waitForAckedVersion();
+    const opsSent = sent.filter(([e]) => e === "ops");
+    expect(opsSent).toHaveLength(1);
+    expect(opsSent[0][1].seq).toBe(1);
+
+    // Timer was cancelled so advancing 100ms does not send duplicate batch
+    vi.advanceTimersByTime(100);
+    expect(sent.filter(([e]) => e === "ops")).toHaveLength(1);
+
+    let resolved = null;
+    waitPromise.then((val) => {
+      resolved = val;
+    });
+    await Promise.resolve();
+    expect(resolved).toBeNull();
+
+    receive("ack", { seq: 1, version: 3, ok: true });
+    const acked = await waitPromise;
+    expect(acked.version).toBe(3);
+    expect(acked.doc.notes).toEqual([{ id: "n-flush" }]);
+  });
+
+  it("waitForAckedVersion rechaza si la sesión pasa a offline antes del ack", async () => {
+    const { session, snapshot, receive } = setup();
+    snapshot(doc(), 1);
+    const initial = session.hydrate();
+    session.observe(initial);
+    session.observe({ ...initial, notes: [{ id: "n-drop" }] });
+
+    const waitPromise = session.waitForAckedVersion();
+    receive("disconnect");
+    await expect(waitPromise).rejects.toThrow("offline");
+  });
+
+  it("waitForAckedVersion / flushPending rechaza por timeout si el ack nunca llega", async () => {
+    const { session, snapshot } = setup();
+    snapshot(doc(), 1);
+    const initial = session.hydrate();
+    session.observe(initial);
+    session.observe({ ...initial, notes: [{ id: "n-timeout" }] });
+
+    const waitPromise = session.flushPending({ timeoutMs: 250 });
+    vi.advanceTimersByTime(300);
+    await expect(waitPromise).rejects.toThrow("timeout");
+  });
 });

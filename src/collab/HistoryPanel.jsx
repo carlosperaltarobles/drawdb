@@ -200,7 +200,8 @@ export default function HistoryPanel({ initialItems = [] }) {
             </div>
             <div className="space-y-1">
               {group.items.map((item) => {
-                const isSelected = preview?.id === item.id;
+                const isSelected =
+                  preview?.kind !== "ai" && preview?.id === item.id;
                 const timeText = formatHour(item.createdAt);
                 const authorsText = formatAuthors(item);
 
@@ -248,6 +249,11 @@ export default function HistoryPanel({ initialItems = [] }) {
                             {item.kind === "pre_restore" && (
                               <span className="text-xs text-amber-600 dark:text-amber-400">
                                 · {t("history_kind_pre_restore")}
+                              </span>
+                            )}
+                            {item.kind === "pre_ai_apply" && (
+                              <span className="text-xs text-emerald-600 dark:text-emerald-400">
+                                · {t("history_kind_pre_ai_apply")}
                               </span>
                             )}
                           </div>
