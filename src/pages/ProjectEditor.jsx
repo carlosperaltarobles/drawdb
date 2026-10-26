@@ -27,9 +27,11 @@ import PreviewBanner from "../collab/PreviewBanner";
 import RemoteCursors from "../collab/RemoteCursors";
 import PresenceBar from "../collab/PresenceBar";
 import AIChatPanel from "../ai/AIChatPanel";
+import ProposalPreviewLayer from "../ai/ProposalPreviewLayer";
 
 const cloudSave = async () => {};
 const canvasLayerSlot = <RemoteCursors />;
+const svgOverlaySlot = <ProposalPreviewLayer />;
 const headerActionsEndSlot = <PresenceBar />;
 const versionsPanelSlot = <HistoryPanel />;
 const rightPanelSlot = <AIChatPanel initialOpen={false} />;
@@ -58,6 +60,7 @@ function ProjectWorkspace() {
       prepareCloudDiagram,
       cloudSave,
       "canvas-layer": canvasLayerSlot,
+      "svg-overlay": svgOverlaySlot,
       "header-actions-end": headerActionsEndSlot,
       "versions-panel": versionsPanelSlot,
       "right-panel": rightPanelSlot,

@@ -28,6 +28,81 @@ export default function PreviewBanner() {
 
   const { projectId, role, endPreview } = collab;
   const canRestore = role === "admin" || role === "editor";
+
+  if (preview.kind === "ai") {
+    const proposal = preview.proposal;
+    const isStale = Boolean(preview.stale || proposal?.stale);
+    const counts = proposal?.summary?.counts ?? {
+      added: 0,
+      modified: 0,
+      removed: 0,
+    };
+
+    return (
+      <div
+        role="status"
+        data-testid="ai-preview-banner"
+        className={`flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm ${
+          isStale
+            ? "bg-amber-100 text-amber-950 dark:bg-amber-950/70 dark:text-amber-100"
+            : "bg-emerald-50 text-emerald-950 dark:bg-emerald-950/60 dark:text-emerald-100"
+        }`}
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-medium">
+            {t(isStale ? "ai_preview_stale_banner" : "ai_preview_banner", {
+              revision: proposal?.revision ?? 1,
+            })}
+          </span>
+          <span className="text-xs opacity-80">
+            {t("ai_proposal_counts", counts)}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="small"
+            data-testid="ai-preview-exit"
+            onClick={() => endPreview?.()}
+          >
+            {t("ai_proposal_exit_preview")}
+          </Button>
+          {isStale && preview.onRegenerate && (
+            <Button
+              size="small"
+              type="warning"
+              data-testid="ai-preview-regenerate"
+              onClick={() => preview.onRegenerate?.()}
+            >
+              {t("ai_proposal_regenerate")}
+            </Button>
+          )}
+          {canRestore && (
+            <>
+              <Button
+                size="small"
+                type="danger"
+                data-testid="ai-preview-discard"
+                onClick={() => preview.onDiscard?.()}
+              >
+                {t("ai_proposal_discard")}
+              </Button>
+              <Button
+                size="small"
+                type="primary"
+                theme="solid"
+                data-testid="ai-preview-accept"
+                disabled={isStale}
+                onClick={() => preview.onApply?.()}
+              >
+                {t("ai_proposal_accept")}
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const time = formatHistoryTime(preview.createdAt);
 
   const handleRestore = () => {

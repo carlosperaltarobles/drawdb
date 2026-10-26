@@ -61,5 +61,24 @@
   - Implemented `AIChatPanel.jsx` (accessible `aside` and `role="log"` live region, private conversation notice, viewer read-only notice, conversation switcher/new/delete, XSS-safe plain-text message rendering with per-response model tags, progress/cancel, "Continuar análisis", and 25-item paginated proposal summary card).
   - Mounted `AIChatPanel` in `ProjectEditor.jsx` `right-panel` slot (shared projects only; local editor `/editor` untouched).
   - Command: `npx vitest run src/ai/AIChatPanel.test.js` -> 1 test file passed (2 comprehensive render suites).
+  - Commit: `d96d4cf`
+
+## Task 9 — Vista previa, marcas visuales, confirmación e historial
+- **Files created / modified:**
+  - `src/ai/proposalMarkers.js`
+  - `src/ai/ProposalPreviewLayer.jsx`
+  - `src/ai/proposalPreview.test.js`
+  - `src/collab/PreviewBanner.jsx`
+  - `src/collab/HistoryPanel.jsx`, `src/collab/HistoryPanel.test.js`
+  - `src/pages/ProjectEditor.jsx`, `src/ai/AIChatPanel.jsx`
+- **TDD & Verification:**
+  - Wrote `src/ai/proposalPreview.test.js` and updated `src/collab/HistoryPanel.test.js` first; ran Vitest to observe expected failures (`Cannot find module '/src/ai/proposalMarkers'` and missing `history_kind_pre_ai_apply` in `HistoryPanel`).
+  - Implemented `src/ai/proposalMarkers.js` (added/modified markers from `after`, removed ghost markers from `before`, viewport culling via `cullBounds`, simplified zoom threshold `< 0.35`, and `locateProposalItem`).
+  - Implemented `src/ai/ProposalPreviewLayer.jsx` and mounted in `ProjectEditor.jsx` `svg-overlay` slot.
+  - Updated `src/collab/PreviewBanner.jsx` to discriminate `preview.kind === "ai"` vs `preview.kind === "history"` (showing revision, counts, exit, discard, accept for editors/admins, and stale regeneration banner).
+  - Updated `src/collab/HistoryPanel.jsx` to render `history_kind_pre_ai_apply` and avoid selecting history items when an AI preview is active.
+  - Verified HTTP `applyProposal` + remote `ops` flow never re-emits previewed changes as local socket `ops`.
+  - Command: `npx vitest run src/ai/proposalPreview.test.js src/collab/HistoryPanel.test.js src/ai/AIChatPanel.test.js` -> 3 test files passed (7 tests).
+
 
 

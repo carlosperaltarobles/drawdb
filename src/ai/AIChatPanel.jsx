@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Modal, Select, Spin, Tag, TextArea, Toast } from "@douyinfe/semi-ui";
 import { useTranslation } from "react-i18next";
+import { useFocus, useTransform } from "../hooks";
 import { useProjectCollab } from "../collab/ProjectCollabProvider";
 import ModelSelector from "./ModelSelector";
+import { locateProposalItem } from "./proposalMarkers";
 import {
   AI_MAX_MESSAGE_LENGTH,
   PROPOSAL_ITEMS_PAGE_SIZE,
@@ -60,6 +62,8 @@ export default function AIChatPanel({
   onLocateItem,
 }) {
   const collab = useProjectCollab();
+  const transformCtx = useTransform();
+  const focusCtx = useFocus();
   const { t } = useTranslation();
 
   const projectId = collab?.projectId ?? initialState?.projectId ?? "project";
@@ -383,16 +387,39 @@ export default function AIChatPanel({
               {paginatedChanges.items.map((item, idx) => {
                 const label =
                   item.afterName || item.beforeName || String(item.id);
+                const handleLocate = () => {
+                  if (onLocateItem) {
+                    onLocateItem(item, activeProposal);
+                    return;
+                  }
+                  const detail = aiState.previewDetail ?? preview;
+                  if (!detail) return;
+                  const loc = locateProposalItem(
+                    item,
+                    detail,
+                    transformCtx?.transform?.zoom,
+                  );
+                  if (loc && transformCtx?.setTransform) {
+                    transformCtx.setTransform((prev) => ({
+                      ...prev,
+                      pan: loc.pan,
+                      zoom: loc.zoom,
+                    }));
+                    if (loc.coll === "tables") {
+                      focusCtx?.flashTable?.(loc.targetId);
+                    }
+                  }
+                };
                 return (
                   <div
                     key={`${item.coll}-${item.id}-${idx}`}
                     role="button"
                     tabIndex={0}
-                    onClick={() => onLocateItem?.(item, activeProposal)}
+                    onClick={handleLocate}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        onLocateItem?.(item, activeProposal);
+                        handleLocate();
                       }
                     }}
                     className="flex items-center justify-between gap-1 px-1.5 py-1 rounded hover:bg-zinc-200/60 dark:hover:bg-zinc-700/50 cursor-pointer"
