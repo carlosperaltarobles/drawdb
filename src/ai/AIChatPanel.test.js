@@ -55,9 +55,7 @@ vi.mock("@douyinfe/semi-ui", () => ({
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key, opts) =>
-      opts && typeof opts === "object"
-        ? `${key}:${JSON.stringify(opts)}`
-        : key,
+      opts && typeof opts === "object" ? `${key}:${JSON.stringify(opts)}` : key,
   }),
 }));
 
@@ -80,10 +78,34 @@ const manyChangesProposal = {
 };
 
 describe("ModelSelector & AIChatPanel", () => {
+  it("hides the panel when AI is disabled but preserves access for other errors", () => {
+    for (const initialOpen of [false, true]) {
+      const html = renderToStaticMarkup(
+        createElement(AIChatPanel, {
+          initialOpen,
+          initialState: { catalog: { items: [], error: "ai_disabled" } },
+        }),
+      );
+      expect(html).toBe("");
+    }
+    const unavailable = renderToStaticMarkup(
+      createElement(AIChatPanel, {
+        initialOpen: false,
+        initialState: { catalog: { items: [], error: "ai_unavailable" } },
+      }),
+    );
+    expect(unavailable).toContain("ai-open-panel");
+  });
+
   it("renders catalog states: empty, error, stale, unknown capabilities, chat-only, and search filtering", () => {
     const emptyHtml = renderToStaticMarkup(
       createElement(ModelSelector, {
-        catalog: { items: [], fetchedAt: null, stale: false, defaultModel: null },
+        catalog: {
+          items: [],
+          fetchedAt: null,
+          stale: false,
+          defaultModel: null,
+        },
         selectedModel: null,
         onSelectModel: vi.fn(),
         onRefresh: vi.fn(),
@@ -146,7 +168,8 @@ describe("ModelSelector & AIChatPanel", () => {
       {
         id: "m1",
         role: "user",
-        content: '<script>window.__xss = 1</script><img src=x onerror="alert(1)">',
+        content:
+          '<script>window.__xss = 1</script><img src=x onerror="alert(1)">',
         status: "complete",
         requestedModel: "chat-a",
         reportedModel: null,
@@ -191,14 +214,23 @@ describe("ModelSelector & AIChatPanel", () => {
             selectedModel: "chat-a",
             title: "Auditoría",
           },
-          messages: { items: maliciousMessages, nextCursor: null, loading: false },
+          messages: {
+            items: maliciousMessages,
+            nextCursor: null,
+            loading: false,
+          },
           activeProposal: { ...manyChangesProposal, stale: false },
           generation: {
             active: true,
             id: "gen-1",
             messageId: "m2",
             requestedModel: "chat-a",
-            progress: { reviewed: 50, remaining: 150, scope: null, baseVersion: 1 },
+            progress: {
+              reviewed: 50,
+              remaining: 150,
+              scope: null,
+              baseVersion: 1,
+            },
           },
           continuation: "next-token",
         },
@@ -206,7 +238,9 @@ describe("ModelSelector & AIChatPanel", () => {
     );
 
     expect(editorHtml).not.toContain("<script>");
-    expect(editorHtml).toContain("&lt;script&gt;window.__xss = 1&lt;/script&gt;");
+    expect(editorHtml).toContain(
+      "&lt;script&gt;window.__xss = 1&lt;/script&gt;",
+    );
     expect(editorHtml).toContain("fixture-chat-a");
     expect(editorHtml).toContain("ai_private_notice");
     expect(editorHtml).toContain("ai_progress_status");
@@ -228,7 +262,11 @@ describe("ModelSelector & AIChatPanel", () => {
           canEdit: false,
           catalog: protocolFixture.catalog,
           conversations: { items: [], nextCursor: null, loading: false },
-          messages: { items: maliciousMessages, nextCursor: null, loading: false },
+          messages: {
+            items: maliciousMessages,
+            nextCursor: null,
+            loading: false,
+          },
           activeProposal: { ...manyChangesProposal, stale: true },
           generation: { active: false, progress: null },
         },

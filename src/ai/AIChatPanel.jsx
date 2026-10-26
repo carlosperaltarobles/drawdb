@@ -179,6 +179,8 @@ export default function AIChatPanel({
     });
   };
 
+  if (aiState.catalog.error === "ai_disabled") return null;
+
   if (!open) {
     return (
       <div className="border-l border-zinc-200 dark:border-zinc-700 p-2 flex flex-col items-center">
