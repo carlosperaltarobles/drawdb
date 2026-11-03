@@ -602,6 +602,38 @@ const en = {
     ai_error_expired_proposal: "The proposal has expired",
     ai_error_forbidden: "You do not have permission to perform this action",
     ai_error_not_found: "Requested resource was not found",
+    mcp_tokens_title: "MCP Tokens",
+    mcp_tokens_description:
+      "Connect AI assistants (Claude Desktop, Cursor, Cline, OpenClaw) to your diagrams via Model Context Protocol.",
+    mcp_token_create: "New MCP token",
+    mcp_token_name: "Token name",
+    mcp_token_name_placeholder: "e.g., Claude Desktop, Cursor, OpenClaw",
+    mcp_token_scope: "Scope",
+    mcp_token_scope_read: "Read",
+    mcp_token_scope_write: "Read & Write",
+    mcp_token_project: "Project",
+    mcp_token_all_projects: "All accessible projects",
+    mcp_token_expiration: "Expiration",
+    mcp_token_no_expiration: "No expiration",
+    mcp_token_expires_days: "{{count}} days",
+    mcp_token_prefix: "Prefix",
+    mcp_token_created_at: "Created",
+    mcp_token_last_used_at: "Last used",
+    mcp_token_expires_at: "Expires",
+    mcp_token_never_used: "Never used",
+    mcp_token_revoke: "Revoke",
+    mcp_token_revoke_confirm_title: "Revoke MCP token",
+    mcp_token_revoke_confirm:
+      'Revoke token "{{name}}"? Any connected MCP client using it will lose access immediately.',
+    mcp_token_revoked: "MCP token revoked",
+    mcp_tokens_empty: "No active MCP tokens.",
+    mcp_token_created_title: "MCP token created",
+    mcp_token_created_warning:
+      "Copy this token now. For security reasons, it will not be shown again.",
+    mcp_token_copy: "Copy token",
+    mcp_token_config_title:
+      "MCP client configuration (Claude Desktop, Cursor, Cline, OpenClaw)",
+    mcp_token_copy_config: "Copy JSON",
   },
 };
 

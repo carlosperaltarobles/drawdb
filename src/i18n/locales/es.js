@@ -609,6 +609,38 @@ const es = {
     ai_error_expired_proposal: "La propuesta ha expirado",
     ai_error_forbidden: "No tienes permisos para realizar esta acción",
     ai_error_not_found: "No se encontró el recurso solicitado",
+    mcp_tokens_title: "Tokens MCP",
+    mcp_tokens_description:
+      "Conecta asistentes de IA (Claude Desktop, Cursor, Cline, OpenClaw) a tus diagramas mediante Model Context Protocol.",
+    mcp_token_create: "Nuevo token MCP",
+    mcp_token_name: "Nombre del token",
+    mcp_token_name_placeholder: "p. ej., Claude Desktop, Cursor, OpenClaw",
+    mcp_token_scope: "Alcance",
+    mcp_token_scope_read: "Lectura",
+    mcp_token_scope_write: "Lectura y escritura",
+    mcp_token_project: "Proyecto",
+    mcp_token_all_projects: "Todos los proyectos accesibles",
+    mcp_token_expiration: "Expiración",
+    mcp_token_no_expiration: "Sin expiración",
+    mcp_token_expires_days: "{{count}} días",
+    mcp_token_prefix: "Prefijo",
+    mcp_token_created_at: "Creación",
+    mcp_token_last_used_at: "Último uso",
+    mcp_token_expires_at: "Expira",
+    mcp_token_never_used: "Nunca usado",
+    mcp_token_revoke: "Revocar",
+    mcp_token_revoke_confirm_title: "Revocar token MCP",
+    mcp_token_revoke_confirm:
+      '¿Revocar el token «{{name}}»? Cualquier cliente MCP que lo utilice perderá el acceso de inmediato.',
+    mcp_token_revoked: "Token MCP revocado",
+    mcp_tokens_empty: "No tienes tokens MCP activos.",
+    mcp_token_created_title: "Token MCP creado",
+    mcp_token_created_warning:
+      "Copia este token ahora. Por seguridad, no se volverá a mostrar.",
+    mcp_token_copy: "Copiar token",
+    mcp_token_config_title:
+      "Configuración para clientes MCP (Claude Desktop, Cursor, Cline, OpenClaw)",
+    mcp_token_copy_config: "Copiar JSON",
   },
 };
 

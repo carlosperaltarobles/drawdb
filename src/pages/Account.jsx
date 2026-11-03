@@ -4,6 +4,7 @@ import { Button, Input, Toast } from "@douyinfe/semi-ui";
 import { useTranslation } from "react-i18next";
 import AuthLayout from "../components/Auth/AuthLayout";
 import ErrorBanner from "../components/Auth/ErrorBanner";
+import McpTokensSection from "../components/Auth/McpTokensSection";
 import { MIN_PASSWORD_LENGTH } from "../data/constants";
 import useSubmit from "../components/Auth/useSubmit";
 import { changePassword } from "../api/auth";
@@ -29,7 +30,7 @@ export default function Account() {
   });
 
   return (
-    <AuthLayout title={t("account")}>
+    <AuthLayout title={t("account")} maxWidth="max-w-2xl">
       <div className="text-sm opacity-70">
         {user.name} · {user.email}
       </div>
@@ -63,8 +64,9 @@ export default function Account() {
           {t("change_password")}
         </Button>
       </form>
+      <McpTokensSection />
       <ErrorBanner message={signOut.error} />
-      <div className="text-sm flex justify-between">
+      <div className="text-sm flex justify-between pt-2 border-t border-color">
         <Link to="/projects">{t("projects")}</Link>
         <Button
           type="tertiary"

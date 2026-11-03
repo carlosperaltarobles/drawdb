@@ -4,7 +4,11 @@ import logo_light from "../../assets/logo_light_160.png";
 import logo_dark from "../../assets/logo_dark_160.png";
 import { useThemedPage } from "../../hooks";
 
-export default function AuthLayout({ title, children }) {
+export default function AuthLayout({
+  title,
+  children,
+  maxWidth = "max-w-sm",
+}) {
   const theme = localStorage.getItem("theme") || "light";
   useThemedPage();
   useEffect(() => {
@@ -20,7 +24,7 @@ export default function AuthLayout({ title, children }) {
           className="h-[42px] mb-6"
         />
       </Link>
-      <div className="card-theme rounded-md p-6 w-full max-w-sm space-y-4">
+      <div className={`card-theme rounded-md p-6 w-full ${maxWidth} space-y-4`}>
         <h1 className="text-xl font-semibold">{title}</h1>
         {children}
       </div>
