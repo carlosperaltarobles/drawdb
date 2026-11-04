@@ -6,7 +6,7 @@
   <style>
     @page {
       size: A4 portrait;
-      margin: 1.6cm 1.4cm;
+      margin: 1.5cm 1.4cm;
       @bottom-right {
         content: counter(page);
         font-size: 8pt;
@@ -27,7 +27,7 @@
     .header {
       border-bottom: 3px solid #3182ce;
       padding-bottom: 10px;
-      margin-bottom: 20px;
+      margin-bottom: 18px;
     }
     .logo-badge {
       display: inline-block;
@@ -56,7 +56,7 @@
       font-size: 12pt;
       border-bottom: 1px solid #e2e8f0;
       padding-bottom: 3px;
-      margin-top: 18px;
+      margin-top: 16px;
       margin-bottom: 8px;
       page-break-after: avoid;
     }
@@ -86,7 +86,6 @@
       word-break: break-all;
       white-space: normal;
     }
-    /* Bloques de código optimizados para impresión PDF: SIN SCROLL, auto-wrap y word-break */
     pre {
       background: #1a202c;
       color: #edf2f7;
@@ -150,7 +149,7 @@
   <div class="header">
     <div class="logo-badge">DrawDB Protocol Suite</div>
     <h1>Guía de Integración Servidor MCP</h1>
-    <p class="subtitle">Conexión de Model Context Protocol (MCP) con Cline CLI, Claude Desktop/Code, ChatGPT y Codex/OpenAI</p>
+    <p class="subtitle">Conexión de Model Context Protocol (MCP) con OpenClaw, Cline CLI, Claude Desktop/Code, ChatGPT y Codex</p>
   </div>
 
   <h2>1. Introducción y Arquitectura</h2>
@@ -170,7 +169,7 @@
     <li>Inicia sesión en la plataforma web de DrawDB (<code>https://drawdb.ddev.site</code> o tu URL en producción).</li>
     <li>Navega al menú de usuario en la esquina superior derecha y selecciona <strong>Mi Cuenta</strong> (<code>/account</code>).</li>
     <li>En la sección <strong>Tokens de acceso MCP (Agentes)</strong>, haz clic en <strong>Nuevo token MCP</strong>.</li>
-    <li>Asigna un nombre descriptivo (ej. <code>Cline CLI</code> o <code>Claude Desktop</code>) y selecciona el alcance:
+    <li>Asigna un nombre descriptivo (ej. <code>OpenClaw Agent</code>, <code>Cline CLI</code> o <code>Claude Desktop</code>) y selecciona el alcance:
       <ul>
         <li><strong>Lectura y escritura (write):</strong> Permite consultar el diagrama, crear/editar tablas, columnas y relaciones.</li>
         <li><strong>Solo lectura (read):</strong> Restringe al agente exclusivamente a consultar esquemas, generar resúmenes y exportar DDL.</li>
@@ -246,7 +245,46 @@
 
   <h2>4. Configuración por Cliente / Asistente IA</h2>
 
-  <h3>A. Cline CLI / Extensión VS Code</h3>
+  <h3>A. OpenClaw (Asistente & Agentes Especialistas)</h3>
+  <p>
+    En OpenClaw puedes conectar el servidor MCP de tres maneras equivalentes:
+  </p>
+
+  <p><strong>Opción 1: Mediante la CLI de OpenClaw</strong></p>
+  <pre><code>openclaw mcp add drawdb \
+  --url https://drawdb-server.ddev.site/api/mcp \
+  --transport streamable-http \
+  --header "Authorization: Bearer ddb_mcp_TU_TOKEN_AQUI"
+
+# Verificar la conexión y probar las herramientas expuestas:
+openclaw mcp doctor drawdb --probe</code></pre>
+
+  <p><strong>Opción 2: Desde el archivo de configuración <code>~/.openclaw/openclaw.json</code></strong></p>
+  <p>En el bloque <code>mcp.servers</code> añade la definición:</p>
+  <pre><code>{
+  "mcp": {
+    "servers": {
+      "drawdb": {
+        "url": "https://drawdb-server.ddev.site/api/mcp",
+        "transport": "streamable-http",
+        "enabled": true,
+        "headers": {
+          "Authorization": "Bearer ddb_mcp_TU_TOKEN_AQUI"
+        }
+      }
+    }
+  }
+}</code></pre>
+
+  <p><strong>Opción 3: Desde la interfaz web (Control UI de OpenClaw)</strong></p>
+  <ul>
+    <li>Ve a <strong>Settings → MCP</strong> y pulsa en <strong>Add server</strong>.</li>
+    <li>Nombre: <code>drawdb</code>. Transporte: <strong>Streamable HTTP</strong>.</li>
+    <li>URL: <code>https://drawdb-server.ddev.site/api/mcp</code> (o tu URL en producción).</li>
+    <li>En la cabecera HTTP ingresa: <code>Authorization: Bearer ddb_mcp_TU_TOKEN_AQUI</code>.</li>
+  </ul>
+
+  <h3>B. Cline CLI / Extensión VS Code</h3>
   <p>
     En Cline, agrega la configuración en el archivo <code>cline_mcp_settings.json</code>:
   </p>
@@ -261,7 +299,7 @@
   }
 }</code></pre>
 
-  <h3>B. Claude Desktop / Claude Code CLI</h3>
+  <h3>C. Claude Desktop / Claude Code CLI</h3>
   <p>
     En <strong>Claude Desktop</strong>, abre la configuración desde <em>Settings &gt; Developer &gt; Edit Config</em> (archivo <code>claude_desktop_config.json</code>):
   </p>
@@ -282,7 +320,7 @@
   https://drawdb-server.ddev.site/api/mcp \
   --header "Authorization: Bearer ddb_mcp_TU_TOKEN_AQUI"</code></pre>
 
-  <h3>C. ChatGPT (OpenAI Custom GPTs & Actions)</h3>
+  <h3>D. ChatGPT (OpenAI Custom GPTs & Actions)</h3>
   <p>
     ChatGPT interactúa con APIs externas a través de <strong>Custom Actions (OpenAPI / GPTs)</strong> o puentes compatibles con MCP:
   </p>
@@ -293,9 +331,9 @@
     <li>Si utilizas un puente local como <code>mcp-proxy</code>, configúralo como servicio upstream con la URL y cabeceras correspondientes.</li>
   </ul>
 
-  <h3>D. OpenAI Codex / IDE Extensions (Cursor, Windsurf, OpenClaw)</h3>
+  <h3>E. OpenAI Codex / IDE Extensions (Cursor, Windsurf)</h3>
   <p>
-    Tanto en <strong>Cursor</strong> (archivo <code>~/.cursor/mcp.json</code>) como en <strong>OpenClaw</strong> o herramientas basadas en Codex, la declaración estándar es:
+    Tanto en <strong>Cursor</strong> (archivo <code>~/.cursor/mcp.json</code>) como en <strong>Windsurf</strong> o extensiones de Codex, la declaración estándar es:
   </p>
   <pre><code>{
   "mcpServers": {
