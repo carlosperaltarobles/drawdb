@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Guía de Conexión MCP - DrawDB</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 1.6cm 1.4cm;
+      @bottom-right {
+        content: counter(page);
+        font-size: 8pt;
+        color: #718096;
+      }
+    }
+    *, *:before, *:after {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #1a202c;
+      line-height: 1.45;
+      font-size: 9.5pt;
+      margin: 0;
+      padding: 0;
+    }
+    .header {
+      border-bottom: 3px solid #3182ce;
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+    }
+    .logo-badge {
+      display: inline-block;
+      background: #ebf8ff;
+      color: #2b6cb0;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 8.5pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    h1 {
+      margin: 0 0 4px 0;
+      color: #2b6cb0;
+      font-size: 18pt;
+    }
+    .subtitle {
+      color: #4a5568;
+      font-size: 10pt;
+      margin: 0;
+    }
+    h2 {
+      color: #2d3748;
+      font-size: 12pt;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 3px;
+      margin-top: 18px;
+      margin-bottom: 8px;
+      page-break-after: avoid;
+    }
+    h3 {
+      color: #2b6cb0;
+      font-size: 10pt;
+      margin-top: 12px;
+      margin-bottom: 5px;
+      page-break-after: avoid;
+    }
+    p, ul, ol {
+      margin: 0 0 8px 0;
+    }
+    ul, ol {
+      padding-left: 18px;
+    }
+    li {
+      margin-bottom: 3px;
+    }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      background: #edf2f7;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 8.5pt;
+      color: #c53030;
+      word-break: break-all;
+      white-space: normal;
+    }
+    /* Bloques de código optimizados para impresión PDF: SIN SCROLL, auto-wrap y word-break */
+    pre {
+      background: #1a202c;
+      color: #edf2f7;
+      padding: 8px 10px;
+      border-radius: 5px;
+      font-size: 8pt;
+      line-height: 1.35;
+      margin: 6px 0 10px 0;
+      page-break-inside: avoid;
+      white-space: pre-wrap !important;
+      word-wrap: break-word !important;
+      word-break: break-word !important;
+      overflow-wrap: break-word !important;
+      overflow: visible !important;
+    }
+    pre code {
+      background: transparent;
+      color: inherit;
+      padding: 0;
+      font-size: inherit;
+      white-space: pre-wrap !important;
+      word-break: break-word !important;
+    }
+    .callout {
+      background: #f7fafc;
+      border-left: 4px solid #3182ce;
+      padding: 8px 12px;
+      margin: 10px 0;
+      border-radius: 0 5px 5px 0;
+      font-size: 9pt;
+      page-break-inside: avoid;
+    }
+    .callout-warning {
+      background: #fffaf0;
+      border-left-color: #dd6b20;
+    }
+    .page-break {
+      page-break-before: always;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0 12px 0;
+      font-size: 8.5pt;
+    }
+    th, td {
+      border: 1px solid #e2e8f0;
+      padding: 5px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #edf2f7;
+      color: #2d3748;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="logo-badge">DrawDB Protocol Suite</div>
+    <h1>Guía de Integración Servidor MCP</h1>
+    <p class="subtitle">Conexión de Model Context Protocol (MCP) con Cline CLI, Claude Desktop/Code, ChatGPT y Codex/OpenAI</p>
+  </div>
+
+  <h2>1. Introducción y Arquitectura</h2>
+  <p>
+    El servidor <strong>DrawDB MCP</strong> expone un conjunto de herramientas estandarizadas mediante el protocolo <strong>Model Context Protocol (MCP)</strong>. Permite a asistentes y agentes de inteligencia artificial consultar la estructura del diagrama, navegar tablas en grafos relacionales, exportar DDL SQL y aplicar modificaciones atómicas en tiempo real sincronizadas mediante WebSockets hacia los clientes de DrawDB en el navegador.
+  </p>
+
+  <div class="callout">
+    <strong>Punto de Conexión Unificado:</strong><br>
+    • <strong>Local (DDEV):</strong> <code>https://drawdb-server.ddev.site/api/mcp</code><br>
+    • <strong>Producción:</strong> <code>https://&lt;tu-dominio-backend&gt;/api/mcp</code><br>
+    • <strong>Transportes soportados:</strong> Streamable HTTP (JSON-RPC 2.0 unificado) y Server-Sent Events (SSE).
+  </div>
+
+  <h2>2. Obtención de Credenciales (API Token)</h2>
+  <ol>
+    <li>Inicia sesión en la plataforma web de DrawDB (<code>https://drawdb.ddev.site</code> o tu URL en producción).</li>
+    <li>Navega al menú de usuario en la esquina superior derecha y selecciona <strong>Mi Cuenta</strong> (<code>/account</code>).</li>
+    <li>En la sección <strong>Tokens de acceso MCP (Agentes)</strong>, haz clic en <strong>Nuevo token MCP</strong>.</li>
+    <li>Asigna un nombre descriptivo (ej. <code>Cline CLI</code> o <code>Claude Desktop</code>) y selecciona el alcance:
+      <ul>
+        <li><strong>Lectura y escritura (write):</strong> Permite consultar el diagrama, crear/editar tablas, columnas y relaciones.</li>
+        <li><strong>Solo lectura (read):</strong> Restringe al agente exclusivamente a consultar esquemas, generar resúmenes y exportar DDL.</li>
+      </ul>
+    </li>
+    <li>Copia el token generado (formato <code>ddb_mcp_...</code>). Por motivos de seguridad, este token solo se muestra una vez.</li>
+  </ol>
+
+  <h2>3. Catálogo de Herramientas (Tools) Disponibles</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 22%;">Herramienta</th>
+        <th style="width: 14%;">Tipo</th>
+        <th>Descripción</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>list_projects</code></td>
+        <td>Lectura</td>
+        <td>Lista los proyectos y diagramas disponibles con ID, nombre, motor de DB y conteo de tablas.</td>
+      </tr>
+      <tr>
+        <td><code>get_schema_summary</code></td>
+        <td>Lectura</td>
+        <td>Genera un resumen ultra-compacto del diagrama o un esquema visual en <strong>Mermaid ERD</strong> sin coordenadas visuales para ahorro de tokens.</td>
+      </tr>
+      <tr>
+        <td><code>get_diagram</code></td>
+        <td>Lectura</td>
+        <td>Devuelve la estructura completa del diagrama en JSON.</td>
+      </tr>
+      <tr>
+        <td><code>search_tables</code></td>
+        <td>Lectura</td>
+        <td>Búsqueda semántica y paginada de tablas, columnas y relaciones vecinas en esquemas grandes.</td>
+      </tr>
+      <tr>
+        <td><code>create_table</code></td>
+        <td>Escritura</td>
+        <td>Crea una nueva tabla validando tipos según el motor. Calcula coordenadas automáticas y difunde en vivo.</td>
+      </tr>
+      <tr>
+        <td><code>update_table</code></td>
+        <td>Escritura</td>
+        <td>Modifica columnas, tipos, comentarios o índices. Permite búsqueda por nombre o ID.</td>
+      </tr>
+      <tr>
+        <td><code>delete_table</code></td>
+        <td>Escritura</td>
+        <td>Elimina una tabla con soporte opcional de borrado en cascada de sus Foreign Keys.</td>
+      </tr>
+      <tr>
+        <td><code>create_relationship</code></td>
+        <td>Escritura</td>
+        <td>Crea llaves foráneas y relaciones 1:1, 1:N o N:M entre tablas existentes.</td>
+      </tr>
+      <tr>
+        <td><code>delete_relationship</code></td>
+        <td>Escritura</td>
+        <td>Elimina una relación específica por su ID.</td>
+      </tr>
+      <tr>
+        <td><code>export_sql</code></td>
+        <td>Lectura</td>
+        <td>Genera el script DDL SQL completo para PostgreSQL, MySQL, MariaDB, SQLite, MSSQL u Oracle.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <h2>4. Configuración por Cliente / Asistente IA</h2>
+
+  <h3>A. Cline CLI / Extensión VS Code</h3>
+  <p>
+    En Cline, agrega la configuración en el archivo <code>cline_mcp_settings.json</code>:
+  </p>
+  <pre><code>{
+  "mcpServers": {
+    "drawdb": {
+      "url": "https://drawdb-server.ddev.site/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ddb_mcp_TU_TOKEN_AQUI"
+      }
+    }
+  }
+}</code></pre>
+
+  <h3>B. Claude Desktop / Claude Code CLI</h3>
+  <p>
+    En <strong>Claude Desktop</strong>, abre la configuración desde <em>Settings &gt; Developer &gt; Edit Config</em> (archivo <code>claude_desktop_config.json</code>):
+  </p>
+  <pre><code>{
+  "mcpServers": {
+    "drawdb": {
+      "url": "https://drawdb-server.ddev.site/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ddb_mcp_TU_TOKEN_AQUI"
+      }
+    }
+  }
+}</code></pre>
+  <p>
+    Para <strong>Claude Code (CLI)</strong>, puedes registrar el servidor directamente con el comando:
+  </p>
+  <pre><code>claude mcp add --transport http drawdb \
+  https://drawdb-server.ddev.site/api/mcp \
+  --header "Authorization: Bearer ddb_mcp_TU_TOKEN_AQUI"</code></pre>
+
+  <h3>C. ChatGPT (OpenAI Custom GPTs & Actions)</h3>
+  <p>
+    ChatGPT interactúa con APIs externas a través de <strong>Custom Actions (OpenAPI / GPTs)</strong> o puentes compatibles con MCP:
+  </p>
+  <ul>
+    <li>En la configuración de tu <strong>Custom GPT</strong>, dirígete a <strong>Actions &gt; Create new action</strong>.</li>
+    <li>En el tipo de autenticación, selecciona <strong>API Key</strong> con formato <strong>Bearer</strong> e ingresa tu token <code>ddb_mcp_...</code>.</li>
+    <li>En el endpoint de llamadas, configura el proxy JSON-RPC o importa la especificación OpenAPI que expone las tools bajo <code>/api/mcp</code>.</li>
+    <li>Si utilizas un puente local como <code>mcp-proxy</code>, configúralo como servicio upstream con la URL y cabeceras correspondientes.</li>
+  </ul>
+
+  <h3>D. OpenAI Codex / IDE Extensions (Cursor, Windsurf, OpenClaw)</h3>
+  <p>
+    Tanto en <strong>Cursor</strong> (archivo <code>~/.cursor/mcp.json</code>) como en <strong>OpenClaw</strong> o herramientas basadas en Codex, la declaración estándar es:
+  </p>
+  <pre><code>{
+  "mcpServers": {
+    "drawdb": {
+      "url": "https://drawdb-server.ddev.site/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ddb_mcp_TU_TOKEN_AQUI"
+      }
+    }
+  }
+}</code></pre>
+
+  <h2>5. Ejemplos de Prompts para Interactuar con DrawDB</h2>
+  <div class="callout callout-warning">
+    <strong>Sugerencia de Flujo de Trabajo:</strong> Siempre pide al agente que comience consultando con <code>get_schema_summary</code> para obtener contexto del esquema sin saturar su ventana de contexto.
+  </div>
+
+  <p><strong>Ejemplo 1: Análisis y Consulta de Esquema</strong></p>
+  <pre><code>"Consulta con la herramienta get_schema_summary el proyecto 'Clínica Médica' y muéstrame el diagrama de relaciones en formato Mermaid."</code></pre>
+
+  <p><strong>Ejemplo 2: Creación de Nuevas Entidades Relacionadas</strong></p>
+  <pre><code>"Usa el servidor MCP de DrawDB en el proyecto actual para agregar una tabla 'citas_medicas' con campos id (uuid pk), doctor_id (uuid), paciente_id (uuid) y fecha (timestamptz). Luego crea la relación hacia la tabla 'pacientes'."</code></pre>
+
+  <p><strong>Ejemplo 3: Generación de Migraciones SQL</strong></p>
+  <pre><code>"Invoca export_sql con dialecto 'postgresql' para el proyecto 'Clínica Médica' y genera el archivo de migración listo para mi backend."</code></pre>
+
+  <h2>6. Seguridad y Rollback</h2>
+  <ul>
+    <li><strong>Control de Versiones y Snapshots:</strong> Cada mutación ejecutada por un agente vía MCP genera automáticamente un punto de restauración previo en la base de datos bajo el autor <code>[Nombre] (MCP)</code>.</li>
+    <li><strong>Rollback en 1 Clic:</strong> Si un agente comete un error en el modelado, abre el panel de <strong>Historial</strong> en la interfaz web de DrawDB y selecciona <em>Restaurar esta versión</em>.</li>
+    <li><strong>Revocación Inmediata:</strong> Si un token es revocado en la pantalla de <em>Mi Cuenta</em>, cualquier llamada en curso o futura por parte de cualquier agente es rechazada al instante con código <code>401 Unauthorized</code>.</li>
+  </ul>
+
+</body>
+</html>
