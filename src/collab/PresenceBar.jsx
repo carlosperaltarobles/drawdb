@@ -32,7 +32,7 @@ export const PresenceBar = memo(function PresenceBar({
   const peers = collab?.peers ?? [];
 
   const isOnline = status === "online";
-  const isAdmin = role != null ? role === "admin" : Boolean(user?.isAdmin);
+  const isAdmin = role === "admin";
 
   const visiblePeers = peers.slice(0, MAX_VISIBLE_PEERS);
   const extraCount = Math.max(0, peers.length - visiblePeers.length);
