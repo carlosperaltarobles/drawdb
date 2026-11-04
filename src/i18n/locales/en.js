@@ -634,6 +634,8 @@ const en = {
     mcp_token_config_title:
       "MCP client configuration (Claude Desktop, Cursor, Cline, OpenClaw)",
     mcp_token_copy_config: "Copy JSON",
+    clipboard_copy_failed:
+      "Could not copy automatically. Please copy it manually.",
   },
 };
 

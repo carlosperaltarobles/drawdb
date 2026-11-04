@@ -145,7 +145,10 @@ export default function McpTokensSection() {
       setFlag(true);
       setTimeout(() => setFlag(false), 2500);
     } catch {
-      // Fallback if clipboard API fails
+      Toast.warning(
+        t("clipboard_copy_failed") ||
+          "No se pudo copiar automáticamente. Por favor cópialo manualmente.",
+      );
     }
   };
 
